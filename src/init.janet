@@ -8,13 +8,23 @@
 (defn unset? [x]
   (= x unset-sentinel))
 
+(defn- flag? [token]
+  (and
+    (= (type token) :symbol)
+    (string/has-prefix? "-" token)))
+
 (var state/flag nil)
 (var state/pending nil)
 
 (defn goto-state [ctx next-state]
   (set (ctx :state) next-state))
 
-(defn type- [form]
+(defn primary-name [{:names names :sym sym}]
+  (match names
+    [name & _] name
+    [] sym))
+
+(defn type+ [form]
   (let [t (type form)]
     (case t
       :tuple (case (tuple/type form)
@@ -32,13 +42,13 @@
    :finish (fn [val]
     (if (unset? val) default val))})
 
+(defn assert-unset [val] (assert (unset? val) "flag already set"))
+
 # TODO: parse
 (defn required [form]
   {:init unset
    :takes-value? true
-   :update (fn [old new]
-    (assert (unset? old) "flag specified more than once")
-    new)
+   :update (fn [old new] (assert-unset old) new)
    :finish (fn [val]
     (when (unset? val)
       (error "missing required flag"))
@@ -47,9 +57,7 @@
 (defn flag []
   {:init unset
    :takes-value? false
-   :update (fn [old]
-    (assert (unset? old) "flag specified more than once")
-    true)
+   :update (fn [old] (assert-unset old) true)
    :finish (fn [val]
     (if (unset? val) false val))})
 
@@ -78,7 +86,7 @@
    :finish tuple/slice})
 
 (defn parse-form [form]
-  (when (< (length form) 2)
+  (when (empty? form)
     (errorf "unable to parse form %q" form))
 
   (defn arity [op args min max]
@@ -94,12 +102,12 @@
     'optional (optional ;(arity op args 1 2))
     '? (optional ;(arity op args 1 2))
     'opt (optional ;(arity op args 1 2))
-    'count (counted ;(arity op args 1 1))
+    'count (counted ;(arity op args 0 0))
     (errorf "unknown operation %q" op)))
 
 # brackets should be shorthand for listed
 (defn parse-type [form]
-  (case (type- form)
+  (case (type+ form)
     :tuple-parens (parse-form form)
     :tuple-brackets (case (length form)
       1 (listed-tuple form)
@@ -111,46 +119,56 @@
     ))
 
 (defn finish-flag [ctx flag next-state]
-  (def names (flag :names))
-  (def sym (flag :sym))
+  (def {:names names :sym sym :doc doc-string :type t} flag)
+
+  (when (nil? t)
+    (errorf "no type for %s" (primary-name flag)))
+
+  (each name names
+    (when (in (ctx :names) name)
+      (errorf "multiple flags named %s" name))
+    (put (ctx :names) name sym))
 
   (when ((ctx :flags) sym)
     (errorf "duplicate flag %s" sym))
 
-  (each name names
-    (when (in (ctx :names) name)
-      (errorf "conflicting alias %q" name))
-    (put (ctx :names) name sym))
-
   (put (ctx :flags) sym
-    {:doc (flag :doc)
+    {:doc doc-string
      :names names
-     :type (parse-type (flag :type))})
+     :type (parse-type t)})
   (array/push (ctx :declared-order) sym)
   (goto-state ctx next-state))
 
-(defn new-flag-state [name]
-  (when (case name '- true '-- true false)
-    (errorf "illegal flag name %q" name))
+(defn new-flag-state [spec-names]
+  (assert (not (empty? spec-names)))
+  (def first-name (first spec-names))
 
-  (def name (string name))
-  (def sym (symbol (string/triml name "-")))
+  (def [sym flag-names]
+    (if (flag? first-name)
+      [(symbol (string/triml first-name "-")) spec-names]
+      [first-name (drop 1 spec-names)]))
 
-  (table/setproto @{:names [name] :sym sym} state/flag))
+  (each flag flag-names
+    (unless (flag? flag)
+      (errorf "all aliases must start with - %q" spec-names)))
 
-(defn primary-name [flag] ((flag :names) 0))
+  (def flag-names (map string flag-names))
+
+  (each name flag-names
+    (when (all |(= $ (chr "-")) name)
+      (errorf "illegal flag name %s" name)))
+
+  (table/setproto @{:names flag-names :sym sym} state/flag))
 
 # TODO: there should be an escape hatch to declare a dynamic docstring.
 # right now the doc string has to be a string literal, which is limiting.
 (set state/flag
   @{:on-string (fn [self ctx str]
       (when (self :doc)
-        (error "doc string already set"))
+        (error "docstring already set"))
       (set (self :doc) str))
-    :on-flag (fn [self ctx name]
-      (if (self :type)
-        (finish-flag ctx self (new-flag-state name))
-        (errorf "no parser for %s" (primary-name self))))
+    :on-flag (fn [self ctx names]
+      (finish-flag ctx self (new-flag-state names)))
     :on-other (fn [self ctx expr]
       (when-let [peg (self :type)]
         (errorf "multiple parsers specified for %s (got %q, already have %q)"
@@ -162,10 +180,12 @@
   (assert (nil? (ctx :doc)) "should never transition back into pending state")
   (set (ctx :doc) expr))
 
+# TODO: we should special-case the very first element
+# so that you can construct a dynamic docstring
 (def state/pending
   @{:on-string set-ctx-doc
-    :on-flag (fn [self ctx name] (goto-state ctx (new-flag-state name)))
-    :on-other set-ctx-doc
+    :on-flag (fn [self ctx names] (goto-state ctx (new-flag-state names)))
+    :on-other (fn [self ctx token] (errorf "unexpected token %q" token))
     :on-eof (fn [_ _])})
 
 (defn parse-specification [spec]
@@ -177,12 +197,10 @@
 
   (each token spec
     (def state (ctx :state))
-    (case (type token)
+    (match (type+ token)
       :string (:on-string state ctx token)
-      :symbol
-        (if (string/has-prefix? "-" token)
-          (:on-flag state ctx token)
-          (:on-other state ctx token))
+      (:tuple-brackets (all symbol? token)) (:on-flag state ctx token)
+      :symbol (:on-flag state ctx [token])
       (:on-other state ctx token)))
   (:on-eof (ctx :state) ctx)
   ctx)
@@ -197,8 +215,6 @@
     ,spec
 
     ))
-
-#(setdyn *debug* true)
 
 (defn print-help [spec]
   (when-let [doc-string (spec :doc)]
@@ -274,14 +290,19 @@
       (array/push anons arg))
     (++ i)))
 
+(defn- is-probably-interpreter? []
+  (= (last (string/split "/" (dyn *executable*))) "janet"))
+
+(defn- get-actual-args []
+  (if (is-probably-interpreter?)
+    (drop 1 (dyn *args*))
+    (dyn *args*)))
+
 (defmacro immediate [doc-string & spec]
   (def spec (parse-specification spec))
 
   (def syms (spec :declared-order))
   (def gensyms (struct ;(catseq [sym :in syms] [sym (gensym)])))
-
-  (pdb syms)
-  (pdb gensyms)
 
   (def var-declarations
     (seq [sym :in syms
@@ -308,23 +329,15 @@
           :set (fn [x] (set ,$sym x))}]))
 
   ~(def [,;syms]
-    (do
+    (try (do
       ,;var-declarations
       (,parse-args
-        (,dyn ,*args*)
+        (,get-actual-args)
         ,(quote-flags (spec :flags))
         ,(quote-values (spec :names))
         (struct ,;refs))
-      [,;finalizations])))
-
-(pp
-  (macex1 '(immediate "hi"
-    --something :number "good"
-    --other :number)))
-
-(immediate "hi"
-    --something :number "good"
-    --other (optional :number 10))
-
-(pp something)
-(pp other)
+      [,;finalizations])
+    ([err]
+      (eprint err)
+      (os/exit 1)
+      ))))
