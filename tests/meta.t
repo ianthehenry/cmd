@@ -24,6 +24,7 @@ Cmd shouldn't export too many symbols:
   cmd/unset?
   cmd/assert-unset
   cmd/counted
+  cmd/state/initial
   cmd/flag
   cmd/required
   cmd/goto-state

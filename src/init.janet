@@ -1,6 +1,9 @@
 (def number-type (fn [str] (assert (scan-number str))))
 (def string-type (fn [str] str))
 
+(defn- assertf [pred str & args]
+  (assert pred (string/format str ;args)))
+
 (def- unset-sentinel (gensym))
 
 (def- unset ~',unset-sentinel)
@@ -140,7 +143,8 @@
   (goto-state ctx next-state))
 
 (defn new-flag-state [spec-names]
-  (assert (not (empty? spec-names)))
+  (assertf (not (empty? spec-names))
+    "unexpected token %q" spec-names)
   (def first-name (first spec-names))
 
   (def [sym flag-names]
@@ -160,8 +164,8 @@
 
   (table/setproto @{:names flag-names :sym sym} state/flag))
 
-# TODO: there should be an escape hatch to declare a dynamic docstring.
-# right now the doc string has to be a string literal, which is limiting.
+# TODO: there should probably be an escape hatch to declare a dynamic docstring.
+# Right now the doc string has to be a string literal, which is limiting.
 (set state/flag
   @{:on-string (fn [self ctx str]
       (when (self :doc)
@@ -177,22 +181,27 @@
     :on-eof (fn [self ctx] (finish-flag ctx self nil))})
 
 (defn set-ctx-doc [self ctx expr]
-  (assert (nil? (ctx :doc)) "should never transition back into pending state")
+  (assertf (nil? (ctx :doc)) "unexpected token %q" expr)
   (set (ctx :doc) expr))
 
-# TODO: we should special-case the very first element
-# so that you can construct a dynamic docstring
 (def state/pending
   @{:on-string set-ctx-doc
     :on-flag (fn [self ctx names] (goto-state ctx (new-flag-state names)))
     :on-other (fn [self ctx token] (errorf "unexpected token %q" token))
     :on-eof (fn [_ _])})
 
+(def state/initial
+  (table/setproto
+    @{:on-other (fn [self ctx token]
+      (set-ctx-doc self ctx token)
+      (goto-state ctx state/pending))}
+    state/pending))
+
 (defn parse-specification [spec]
   (def ctx
     @{:flags @{}
       :names @{}
-      :state state/pending
+      :state state/initial
       :declared-order @[]})
 
   (each token spec
@@ -205,7 +214,7 @@
   (:on-eof (ctx :state) ctx)
   ctx)
 
-(defmacro simple [doc-string spec & body]
+(defmacro simple [spec & body]
   (unless (and (tuple? spec) (= (tuple/type spec) :brackets))
     (errorf "expected bracketed list of flags, got %q" spec))
   (def spec (parse-specification spec))
@@ -298,7 +307,7 @@
     (drop 1 (dyn *args*))
     (dyn *args*)))
 
-(defmacro immediate [doc-string & spec]
+(defmacro immediate [& spec]
   (def spec (parse-specification spec))
 
   (def syms (spec :declared-order))

@@ -21,12 +21,11 @@ Duplicate docstring:
   ! script.janet:2:1: compile error: error: (macro) docstring already set
   [1]
 
-TODO: why doesn't this error?
 Docstring before flag:
 
   $ use <<<'(cmd/immediate "doc" "help" --arg :string)'
   $ run_err
-  ! --arg: missing required flag
+  ! script.janet:2:1: compile error: error: (macro) unexpected token "help"
   [1]
 
 Exact duplicate flags:
@@ -53,11 +52,15 @@ Different flags, same symbol:
 
 Illegal alias:
 
-  $ use <<<'(cmd/immediate "doc" [--arg arg] hi)'
+  $ use <<<'(cmd/immediate "doc" [--arg arg] :string)'
   $ run_err
   ! script.janet:2:1: compile error: error: (macro) all aliases must start with - [--arg arg]
   [1]
-  $ use <<<'(cmd/immediate "doc" [--arg "arg"] hi)'
+  $ use <<<'(cmd/immediate "doc" [--arg "arg"] :string)'
   $ run_err
   ! script.janet:2:1: compile error: error: (macro) unexpected token [--arg "arg"]
+  [1]
+  $ use <<<'(cmd/immediate "doc" [])'
+  $ run_err
+  ! script.janet:2:1: compile error: error: (macro) unexpected token []
   [1]
