@@ -8,26 +8,27 @@
 
 (def- unset ~',unset-sentinel)
 
-(defn unset? [x]
+(defn- unset? [x]
   (= x unset-sentinel))
 
-(defn- flag? [token]
+(defn- named-arg? [token]
   (and
     (= (type token) :symbol)
     (string/has-prefix? "-" token)))
 
-(var state/flag nil)
-(var state/pending nil)
-
-(defn goto-state [ctx next-state]
+(defn- goto-state [ctx next-state]
   (set (ctx :state) next-state))
 
-(defn primary-name [{:names names :sym sym}]
+# TODO: probably get rid of primary-name? at least in spec
+# errors. it's good to show it to the user, but if there's a
+# spec parse error it should probably treat the symbol as the
+# canonical name
+(defn- primary-name [{:names names :sym sym}]
   (match names
     [name & _] name
     [] sym))
 
-(defn type+ [form]
+(defn- type+ [form]
   (let [t (type form)]
     (case t
       :tuple (case (tuple/type form)
@@ -36,7 +37,7 @@
       t)))
 
 # TODO: parse
-(defn optional [form &opt default]
+(defn- optional [form &opt default]
   {:init unset
    :takes-value? true
    :update (fn [old new]
@@ -45,10 +46,10 @@
    :finish (fn [val]
     (if (unset? val) default val))})
 
-(defn assert-unset [val] (assert (unset? val) "flag already set"))
+(defn- assert-unset [val] (assert (unset? val) "flag already set"))
 
 # TODO: parse
-(defn required [form]
+(defn- required [form]
   {:init unset
    :takes-value? true
    :update (fn [old new] (assert-unset old) new)
@@ -57,21 +58,21 @@
       (error "missing required flag"))
     val)})
 
-(defn flag []
+(defn- flag []
   {:init unset
    :takes-value? false
    :update (fn [old] (assert-unset old) true)
    :finish (fn [val]
     (if (unset? val) false val))})
 
-(defn counted []
+(defn- counted []
   {:init 0
    :takes-value? false
    :update (fn [old] (+ old 1))
    :finish |$})
 
 # TODO: parse
-(defn listed-array [form]
+(defn- listed-array [form]
   {:init @[]
    :takes-value? true
    :update (fn [old new]
@@ -80,7 +81,7 @@
    :finish |$})
 
 # TODO: parse
-(defn listed-tuple [form]
+(defn- listed-tuple [form]
   {:init @[]
    :takes-value? true
    :update (fn [old new]
@@ -88,7 +89,7 @@
     old)
    :finish tuple/slice})
 
-(defn parse-form [form]
+(defn- parse-form [form]
   (when (empty? form)
     (errorf "unable to parse form %q" form))
 
@@ -106,10 +107,11 @@
     '? (optional ;(arity op args 1 2))
     'opt (optional ;(arity op args 1 2))
     'count (counted ;(arity op args 0 0))
+    'flag (flag ;(arity op args 0 0))
     (errorf "unknown operation %q" op)))
 
 # brackets should be shorthand for listed
-(defn parse-type [form]
+(defn- parse-type [form]
   (case (type+ form)
     :tuple-parens (parse-form form)
     :tuple-brackets (case (length form)
@@ -121,7 +123,7 @@
     :keyword (required form)
     ))
 
-(defn finish-flag [ctx flag next-state]
+(defn- finish-flag [ctx flag next-state]
   (def {:names names :sym sym :doc doc-string :type t} flag)
 
   (when (nil? t)
@@ -142,18 +144,20 @@
   (array/push (ctx :declared-order) sym)
   (goto-state ctx next-state))
 
-(defn new-flag-state [spec-names]
+(var- state/arg nil)
+
+(defn- new-flag-state [spec-names]
   (assertf (not (empty? spec-names))
     "unexpected token %q" spec-names)
   (def first-name (first spec-names))
 
   (def [sym flag-names]
-    (if (flag? first-name)
+    (if (named-arg? first-name)
       [(symbol (string/triml first-name "-")) spec-names]
       [first-name (drop 1 spec-names)]))
 
   (each flag flag-names
-    (unless (flag? flag)
+    (unless (named-arg? flag)
       (errorf "all aliases must start with - %q" spec-names)))
 
   (def flag-names (map string flag-names))
@@ -162,11 +166,11 @@
     (when (all |(= $ (chr "-")) name)
       (errorf "illegal flag name %s" name)))
 
-  (table/setproto @{:names flag-names :sym sym} state/flag))
+  (table/setproto @{:names flag-names :sym sym} state/arg))
 
 # TODO: there should probably be an escape hatch to declare a dynamic docstring.
 # Right now the doc string has to be a string literal, which is limiting.
-(set state/flag
+(set state/arg
   @{:on-string (fn [self ctx str]
       (when (self :doc)
         (error "docstring already set"))
@@ -180,24 +184,24 @@
       (set (self :type) expr))
     :on-eof (fn [self ctx] (finish-flag ctx self nil))})
 
-(defn set-ctx-doc [self ctx expr]
+(defn- set-ctx-doc [self ctx expr]
   (assertf (nil? (ctx :doc)) "unexpected token %q" expr)
   (set (ctx :doc) expr))
 
-(def state/pending
+(def- state/pending
   @{:on-string set-ctx-doc
     :on-flag (fn [self ctx names] (goto-state ctx (new-flag-state names)))
     :on-other (fn [self ctx token] (errorf "unexpected token %q" token))
     :on-eof (fn [_ _])})
 
-(def state/initial
+(def- state/initial
   (table/setproto
     @{:on-other (fn [self ctx token]
       (set-ctx-doc self ctx token)
       (goto-state ctx state/pending))}
     state/pending))
 
-(defn parse-specification [spec]
+(defn- parse-specification [spec]
   (def ctx
     @{:flags @{}
       :names @{}
@@ -225,7 +229,7 @@
 
     ))
 
-(defn print-help [spec]
+(defn- print-help [spec]
   (when-let [doc-string (spec :doc)]
     (print doc-string)
     (print))
@@ -234,25 +238,25 @@
     (sorted-by 0 (pairs (spec :flags)))
     (printf "%s %q %q" names t doc)))
 
-(defmacro catseq [& args]
+(defmacro- catseq [& args]
   ~(mapcat |$ (seq ,;args)))
 
-(defmacro pdb [& exprs]
+(defmacro- pdb [& exprs]
   ~(do
     ,;(seq [expr :in exprs]
         ~(eprintf "%s = %q" ,(string/format "%q" expr) ,expr))))
 
-(defn quote-flags [flags]
+(defn- quote-flags [flags]
   ~(struct
     ,;(catseq [[key {:type t}] :pairs flags]
       [~',key t])))
 
-#(defn quote-keys [struct]
+#(defn- quote-keys [struct]
 #  ~(struct
 #    ,;(catseq [[key val] :pairs struct]
 #      [~',key val])))
 
-(defn quote-values [struct]
+(defn- quote-values [struct]
   ~(struct
     ,;(catseq [[key val] :pairs struct]
       [key ~',val])))
@@ -263,7 +267,7 @@
 # the stack frames, and just throw them away
 # when we're using one of the user-facing macros?
 # hmm. hmm hmm hmm.
-(defmacro try-with-context [name & body]
+(defmacro- try-with-context [name & body]
   ~(try (do ,;body)
     ([err fib]
       (errorf "%s: %s" ,name err))))
@@ -271,7 +275,7 @@
 # flags: sym -> type description
 # lookup: string -> sym
 # callbacks: string -> sym
-(defn parse-args [args flags lookup refs]
+(defn- parse-args [args flags lookup refs]
   (var i 0)
   (def anons @[])
 
