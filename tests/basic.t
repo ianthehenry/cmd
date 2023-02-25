@@ -17,6 +17,23 @@ Flags are required by default:
   $ run --arg foo
   "foo"
 
+Explicit required arguments:
+
+  $ use <<EOF
+  > (cmd/immediate "doc"
+  >   --arg (required :string))
+  > (pp arg)
+  > EOF
+
+  $ run
+  ! --arg: missing required argument
+  [1]
+  $ run --arg
+  ! --arg: missing argument
+  [1]
+  $ run --arg foo
+  "foo"
+
 Renamed flags:
 
   $ use <<EOF
@@ -46,11 +63,11 @@ Aliases:
   ! --other: duplicate argument
   [1]
 
-Listed parameters are specified with square brackets:
+Listed parameters, tuple:
 
   $ use <<EOF
   > (cmd/immediate "doc"
-  >   --arg [:string])
+  >   --arg (tuple :string))
   > (pp arg)
   > EOF
 
@@ -64,11 +81,11 @@ Listed parameters are specified with square brackets:
   $ run --arg foo --arg bar
   ("foo" "bar")
 
-Listed array parameters are specified as an array:
+Listed array parameters, array:
 
   $ use <<EOF
   > (cmd/immediate "doc"
-  >   --arg @[:string])
+  >   --arg (array :string))
   > (pp arg)
   > EOF
 
@@ -86,7 +103,7 @@ Count parameters:
 
   $ use <<EOF
   > (cmd/immediate "doc"
-  >   -v (count))
+  >   -v (counted))
   > (pp v)
   > EOF
 
@@ -114,4 +131,39 @@ Flag parameters:
   true
   $ run -v -v
   ! -v: duplicate argument
+  [1]
+
+Docstring is optional:
+
+  $ use <<EOF
+  > (cmd/immediate --arg :string)
+  > (pp arg)
+  > EOF
+
+  $ run
+  ! --arg: missing required argument
+  [1]
+  $ run --arg hi
+  "hi"
+
+Duplicates allowed, take last:
+
+  $ use <<EOF
+  > (cmd/immediate "doc"
+  >   --arg (last :string))
+  > (pp arg)
+  > EOF
+
+  $ run
+  ! --arg: missing required argument
+  [1]
+  $ run --arg
+  ! --arg: missing argument
+  [1]
+  $ run --arg foo
+  "foo"
+  $ run --arg foo --arg bar
+  "bar"
+  $ run --arg foo --arg
+  ! --arg: missing argument
   [1]

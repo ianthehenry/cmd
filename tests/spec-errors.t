@@ -4,14 +4,14 @@ Missing type:
 
   $ use <<<'(cmd/immediate "doc" --arg)'
   $ run_err
-  ! script.janet:2:1: compile error: error: (macro) no type for --arg
+  ! script.janet:2:1: compile error: error: (macro) no handler for arg
   [1]
 
 Duplicate type:
 
   $ use <<<'(cmd/immediate "doc" --arg :string :string)'
   $ run_err
-  ! script.janet:2:1: compile error: error: (macro) multiple parsers specified for --arg (got :string, already have :string)
+  ! script.janet:2:1: compile error: error: (macro) multiple handlers specified for arg (got :string, already have :string)
   [1]
 
 Duplicate docstring:
@@ -63,4 +63,30 @@ Illegal alias:
   $ use <<<'(cmd/immediate "doc" [])'
   $ run_err
   ! script.janet:2:1: compile error: error: (macro) unexpected token []
+  [1]
+
+Choice with named arg:
+
+  $ use <<<'(cmd/immediate "doc" --something {--foo 1 --bar 2})'
+  $ run_err
+  ! script.janet:2:1: compile error: error: (macro) you must specify all aliases for something inside {}
+  [1]
+
+Choice with aliases:
+
+  $ use <<<'(cmd/immediate "doc" [--a --b] {--foo 1 --bar 2})'
+  $ run_err
+  ! script.janet:2:1: compile error: error: (macro) you must specify all aliases for a inside {}
+  [1]
+
+Duplicate aliases in choice:
+
+  $ use <<EOF
+  > (cmd/immediate "doc"
+  >   choice (required {[--foo --foo] 1 --bar 2}))
+  > (pp choice)
+  > EOF
+
+  $ run_err
+  ! script.janet:2:1: compile error: error: (macro) duplicate alias --foo
   [1]

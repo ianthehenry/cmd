@@ -1,6 +1,34 @@
 (def number-type (fn [str] (assert (scan-number str))))
 (def string-type (fn [str] str))
 
+(defmacro- catseq [& args]
+  ~(mapcat |$ (seq ,;args)))
+
+# TODO: this needs a more clear name. what we're doing is
+# converting this into a format that can be interpreted.
+# as part of this, we'll need to evaluate the parser itself,
+# which we do not currently do.
+(defn- quote-args [args]
+  # because otherwise the prototype will be completely ignored...
+  ~(struct
+    ,;(catseq [[key {:type t}] :pairs args]
+      [~',key (struct/proto-flatten t)])))
+
+(defn- quote-keys [dict]
+  ~(struct
+    ,;(catseq [[key val] :pairs dict]
+      [~',key val])))
+
+(defn- quote-values [struct]
+  ~(struct
+    ,;(catseq [[key val] :pairs struct]
+      [key ~',val])))
+
+(defmacro- pdb [& exprs]
+  ~(do
+    ,;(seq [expr :in exprs]
+        ~(eprintf "%s = %q" ,(string/format "%q" expr) ,expr))))
+
 (defn- assertf [pred str & args]
   (assert pred (string/format str ;args)))
 
@@ -23,10 +51,10 @@
 # errors. it's good to show it to the user, but if there's a
 # spec parse error it should probably treat the symbol as the
 # canonical name
-(defn- primary-name [{:names names :sym sym}]
-  (match names
-    [name & _] name
-    [] sym))
+(defn- display-name [{:names names :sym sym}]
+  (if (empty? names)
+    sym
+    (string/join names "/")))
 
 (defn- type+ [form]
   (let [t (type form)]
@@ -36,60 +64,144 @@
         :parens :tuple-parens)
       t)))
 
-# TODO: parse
-(defn- optional [form &opt default]
-  {:init unset
-   :takes-value? true
-   :update (fn [old new]
-    (assert (unset? old) "optional value already set")
-    new)
-   :finish (fn [val]
-    (if (unset? val) default val))})
-
 (defn- assert-unset [val] (assert (unset? val) "duplicate argument"))
 
+(defn- named-arg-to-string [token]
+  (if (named-arg? token)
+    (string token)
+    (assertf "expected named argument, got %q" token)))
+
+(defn- named-args-from-keys [s]
+  (catseq [key :keys s]
+    (case (type+ key)
+      :tuple-brackets (map named-arg-to-string key)
+      [(named-arg-to-string key)])))
+
+(defn- put-unique [table key value str & args]
+  (assertf (nil? (table key)) str ;args)
+  (put table key value))
+
+(defn- parse-simple-type-declaration [type-declaration]
+  (if (= type-declaration :string)
+    |$
+    (errorf "unknown type declaration %q" type-declaration)))
+
+(defn- get-dictionary-parser [dict]
+  (def additional-names (named-args-from-keys dict))
+  (def takes-value? (table? dict))
+
+  # we only want to evaluate each type declaration once,
+  # so we make two lookup tables: one from string name
+  # to unique symbol, and one from unique symbol to
+  # abstract syntax tree. we'll evaluate the latter table,
+  # and use the former table to decide how to look up in it
+  (def alias-remap @{})
+  (def types-for-arg @{})
+  (eachp [name-or-names type-declaration] dict
+    (def key (if (tuple? name-or-names)
+      (do
+        (def sym (gensym))
+        (each name name-or-names
+          (put-unique alias-remap (string name) sym "duplicate alias %q" name))
+        sym)
+      (do
+        (def name name-or-names)
+        (put-unique alias-remap (string name) name "duplicate alias %q" name)
+        name)))
+    (def value ((if takes-value? parse-simple-type-declaration |$) type-declaration))
+    (put-unique types-for-arg key value "BUG: duplicate key %q" key))
+
+  (defn parse-string [types-for-arg arg-name value]
+    (def key (alias-remap arg-name))
+    (def t (types-for-arg key))
+    (if takes-value?
+      # TODO: actually parse it as a function:
+      # (do (assert (string? value) (t value)))
+      (do (assert (string? value)) value)
+      (do (assert (nil? value)) t)))
+
+  [additional-names
+   takes-value?
+   (quote-keys types-for-arg)
+   parse-string])
+
+# a type declaration can be an arbitrary expression. returns
+# [additional-names takes-value? $type parse-string]
+# $type is an abstract syntax tree that will be evaluated
+# parse-string is a function from [type argument-name argument-value] -> value
+# parse-string takes the evaluated type
+(defn- get-parser [type-declaration]
+  (if (dictionary? type-declaration)
+    (get-dictionary-parser type-declaration)
+    [[]
+     true
+     (parse-simple-type-declaration type-declaration)
+     (fn [parse-string name value] (parse-string value))]))
+
 # TODO: parse
-(defn- required [form]
-  {:init unset
-   :takes-value? true
-   :update (fn [old new] (assert-unset old) new)
-   :finish (fn [val]
-    (when (unset? val)
-      (error "missing required argument"))
-    val)})
+(defn- handle/required [type-declaration]
+  (def [additional-names takes-value? $type parse-string] (get-parser type-declaration))
+  [additional-names
+   {:init unset
+    :takes-value? takes-value?
+    :type $type
+    :update (fn [t name old new]
+      (assert-unset old)
+      (parse-string t name new))
+    :finish (fn [val]
+     (when (unset? val)
+       (error "missing required argument"))
+     val)}])
 
-(defn- flag []
-  {:init unset
-   :takes-value? false
-   :update (fn [old] (assert-unset old) true)
-   :finish (fn [val]
-    (if (unset? val) false val))})
+(defn- handle/optional [type-declaration &opt default]
+  (def [additional-names handler] (handle/required type-declaration))
+  [additional-names (struct/with-proto handler
+    :finish (fn [val] (if (unset? val) default val)))])
 
-(defn- counted []
-  {:init 0
-   :takes-value? false
-   :update (fn [old] (+ old 1))
-   :finish |$})
+(defn- handle/last [type-declaration]
+  (def [additional-names handler] (handle/required type-declaration))
+  [additional-names (struct/with-proto handler
+    :update (fn [t name _ new] ((handler :update) t name unset-sentinel new)))])
 
-# TODO: parse
-(defn- listed-array [form]
-  {:init @[]
-   :takes-value? true
-   :update (fn [old new]
-    (array/push old new)
-    old)
-   :finish |$})
+(defn- handle/last? [type-declaration &opt default]
+  (def [additional-names handler] (handle/optional type-declaration default))
+  [additional-names (struct/with-proto handler
+    :update (fn [t name _ new] ((handler :update) t name unset-sentinel new)))])
 
-# TODO: parse
-(defn- listed-tuple [form]
-  {:init @[]
-   :takes-value? true
-   :update (fn [old new]
-    (array/push old new)
-    old)
-   :finish tuple/slice})
+(defn- handle/flag []
+  [[]
+   {:init unset
+    :takes-value? false
+    :type nil
+    :update (fn [_ _ old _] (assert-unset old) true)
+    :finish (fn [val]
+     (if (unset? val) false val))}])
 
-(defn- parse-form [form]
+(defn- handle/counted []
+  [[]
+   {:init 0
+    :takes-value? false
+    :type nil
+    :update (fn [_ _ old _] (+ old 1))
+    :finish |$}])
+
+(defn- handle/listed-array [type-declaration]
+  (def [additional-names takes-value? $type parse-string] (get-parser type-declaration))
+  [additional-names
+   {:init @[]
+    :takes-value? takes-value?
+    :type $type
+    :update (fn [t name old new]
+     (array/push old (parse-string t name new))
+     old)
+    :finish |$}])
+
+(defn- handle/listed-tuple [type-declaration]
+  (def [additional-names handler] (handle/listed-array type-declaration))
+  [additional-names (struct/with-proto handler :finish tuple/slice)])
+
+# returns a tuple of [additional-names handler]
+(defn- parse-form-handler [form]
   (when (empty? form)
     (errorf "unable to parse form %q" form))
 
@@ -101,33 +213,39 @@
     args)
 
   (def [op & args] form)
-  # TODO: special-case quasiquote here...
   (case op
-    'optional (optional ;(arity op args 1 2))
-    '? (optional ;(arity op args 1 2))
-    'opt (optional ;(arity op args 1 2))
-    'count (counted ;(arity op args 0 0))
-    'flag (flag ;(arity op args 0 0))
+    'quasiquote (handle/required args)
+    'required (handle/required ;(arity op args 1 1))
+    'optional (handle/optional ;(arity op args 1 2))
+    'last (handle/last ;(arity op args 1 1))
+    'last? (handle/last? ;(arity op args 1 2))
+    'counted (handle/counted ;(arity op args 0 0))
+    'flag (handle/flag ;(arity op args 0 0))
+    'tuple (handle/listed-tuple ;(arity op args 1 1))
+    'array (handle/listed-array ;(arity op args 1 1))
     (errorf "unknown operation %q" op)))
 
-# brackets should be shorthand for listed
-(defn- parse-type [form]
+(defn- parse-handler [form]
   (case (type+ form)
-    :tuple-parens (parse-form form)
-    :tuple-brackets (case (length form)
-      1 (listed-tuple form)
-      (errorf "unable to parse %q" form))
-    :array (case (length form)
-      1 (listed-array form)
-      (errorf "unable to parse %q" form))
-    :keyword (required form)
-    ))
+    :tuple-parens (parse-form-handler form)
+    :keyword (handle/required form)
+    :struct (handle/required form)
+    :table (handle/required form)
+    (errorf "unknown handler %q" form)))
 
 (defn- finish-arg [ctx arg next-state]
-  (def {:names names :sym sym :doc doc-string :type t} arg)
+  (def {:names names :sym sym :doc doc-string :type handler} arg)
 
-  (when (nil? t)
-    (errorf "no type for %s" (primary-name arg)))
+  (when (nil? handler)
+    (errorf "no handler for %s" sym))
+
+  (def [additional-names actual-type] (parse-handler handler))
+  (def names
+    (if (empty? additional-names)
+      names
+      (do
+        (assertf (empty? names) "you must specify all aliases for %q inside {}" sym)
+        additional-names)))
 
   (each name names
     (when (in (ctx :names) name)
@@ -140,7 +258,7 @@
   (put (ctx :args) sym
     {:doc doc-string
      :names names
-     :type (parse-type t)})
+     :type actual-type})
   (array/push (ctx :declared-order) sym)
   (goto-state ctx next-state))
 
@@ -150,6 +268,8 @@
   (assertf (not (empty? spec-names))
     "unexpected token %q" spec-names)
   (def first-name (first spec-names))
+  (assertf (all symbol? spec-names)
+    "unexpected token %q" spec-names)
 
   (def [sym arg-names]
     (if (named-arg? first-name)
@@ -178,9 +298,9 @@
     :on-arg (fn [self ctx names]
       (finish-arg ctx self (new-arg-state names)))
     :on-other (fn [self ctx expr]
-      (when-let [peg (self :type)]
-        (errorf "multiple parsers specified for %s (got %q, already have %q)"
-          (primary-name self) expr peg))
+      (when-let [handler (self :type)]
+        (errorf "multiple handlers specified for %s (got %q, already have %q)"
+          (self :sym) expr handler))
       (set (self :type) expr))
     :on-eof (fn [self ctx] (finish-arg ctx self nil))})
 
@@ -210,24 +330,13 @@
 
   (each token spec
     (def state (ctx :state))
-    (match (type+ token)
+    (case (type+ token)
       :string (:on-string state ctx token)
-      (:tuple-brackets (all symbol? token)) (:on-arg state ctx token)
+      :tuple-brackets (:on-arg state ctx token)
       :symbol (:on-arg state ctx [token])
       (:on-other state ctx token)))
   (:on-eof (ctx :state) ctx)
   ctx)
-
-(defmacro simple [spec & body]
-  (unless (and (tuple? spec) (= (tuple/type spec) :brackets))
-    (errorf "expected bracketed list of args, got %q" spec))
-  (def spec (parse-specification spec))
-
-  ~(fn [& args]
-
-    ,spec
-
-    ))
 
 (defn- print-help [spec]
   (when-let [doc-string (spec :doc)]
@@ -237,29 +346,6 @@
   (each [_ {:names names :type t :doc doc}]
     (sorted-by 0 (pairs (spec :args)))
     (printf "%s %q %q" names t doc)))
-
-(defmacro- catseq [& args]
-  ~(mapcat |$ (seq ,;args)))
-
-(defmacro- pdb [& exprs]
-  ~(do
-    ,;(seq [expr :in exprs]
-        ~(eprintf "%s = %q" ,(string/format "%q" expr) ,expr))))
-
-(defn- quote-args [args]
-  ~(struct
-    ,;(catseq [[key {:type t}] :pairs args]
-      [~',key t])))
-
-#(defn- quote-keys [struct]
-#  ~(struct
-#    ,;(catseq [[key val] :pairs struct]
-#      [~',key val])))
-
-(defn- quote-values [struct]
-  ~(struct
-    ,;(catseq [[key val] :pairs struct]
-      [key ~',val])))
 
 # TODO: you could imagine a debug mode
 # where we preserve the stack frames here...
@@ -271,6 +357,11 @@
   ~(try (do ,;body)
     ([err fib]
       (errorf "%s: %s" ,name err))))
+
+(defn- set-ref [ref value]
+  ((ref :set) value))
+(defn- get-ref [ref]
+  ((ref :get)))
 
 # args: [string]
 # spec: sym -> type description
@@ -296,11 +387,10 @@
           (errorf "unknown argument %s" arg))
         (def t (assert (spec sym)))
         (def ref (assert (refs sym)))
+        (def {:update handle :type t :takes-value? takes-value?} t)
 
         (try-with-context arg
-          (if (t :takes-value?)
-            ((ref :set) ((t :update) ((ref :get)) (next-arg)))
-            ((ref :set) ((t :update) ((ref :get)))))))
+          (set-ref ref (handle t arg (get-ref ref) (if takes-value? (next-arg) nil)))))
       (array/push anons arg))
     (++ i)))
 
@@ -312,9 +402,7 @@
     (drop 1 (dyn *args*))
     (dyn *args*)))
 
-(defmacro immediate [& spec]
-  (def spec (parse-specification spec))
-
+(defn- assignment [spec]
   (def syms (spec :declared-order))
   (def gensyms (struct ;(catseq [sym :in syms] [sym (gensym)])))
 
@@ -329,7 +417,7 @@
     (seq [sym :in syms
           :let [$sym (gensyms sym)
                 arg ((spec :args) sym)
-                name (primary-name arg)
+                name (display-name arg)
                 t (arg :type)]]
       ~(as-macro
         ,try-with-context ,name
@@ -355,3 +443,15 @@
       (eprint err)
       (os/exit 1)
       ))))
+
+(defmacro simple [spec & body]
+  (unless (= (type+ spec) :tuple-brackets)
+    (errorf "expected bracketed list of args, got %q" spec))
+  (def spec (parse-specification spec))
+  ~(fn [& args]
+    ,(assignment spec)
+    ,;body))
+
+(defmacro immediate [& spec]
+  (def spec (parse-specification spec))
+  (assignment spec))
