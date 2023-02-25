@@ -111,10 +111,10 @@ Count parameters:
   0
   $ run -v
   1
-  $ run -v -v foo
+  $ run -v -v
   2
-  $ run -vv foo
-  ! unknown argument -vv
+  $ run -vv
+  ! unknown parameter -vv
   [1]
 
 Flag parameters:

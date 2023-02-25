@@ -32,22 +32,22 @@ Exact duplicate flags:
 
   $ use <<<'(cmd/immediate "doc" --arg :string --arg :string)'
   $ run_err
-  ! script.janet:2:1: compile error: error: (macro) multiple arguments with alias --arg
+  ! script.janet:2:1: compile error: error: (macro) multiple parameters with alias --arg
   [1]
 
 Different flags, same symbol:
 
   $ use <<<'(cmd/immediate "doc" --arg :string ---arg :string)'
   $ run_err
-  ! script.janet:2:1: compile error: error: (macro) duplicate argument arg
+  ! script.janet:2:1: compile error: error: (macro) duplicate parameter arg
   [1]
   $ use <<<'(cmd/immediate "doc" [foo --arg] :string --foo :string)'
   $ run_err
-  ! script.janet:2:1: compile error: error: (macro) duplicate argument foo
+  ! script.janet:2:1: compile error: error: (macro) duplicate parameter foo
   [1]
   $ use <<<'(cmd/immediate "doc" [foo --arg] :string [foo --bar] :string)'
   $ run_err
-  ! script.janet:2:1: compile error: error: (macro) duplicate argument foo
+  ! script.janet:2:1: compile error: error: (macro) duplicate parameter foo
   [1]
 
 Illegal alias:
