@@ -11,7 +11,7 @@ Default value for optional flags is nil:
   $ run
   nil
   $ run --arg
-  ! --arg: missing argument
+  ! --arg: no value for argument
   [1]
   $ run --arg foo
   "foo"
@@ -27,7 +27,7 @@ You can specify a custom default:
   $ run
   "foo"
   $ run --arg
-  ! --arg: missing argument
+  ! --arg: no value for argument
   [1]
   $ run --arg foo
   "foo"

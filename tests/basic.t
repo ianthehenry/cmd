@@ -17,6 +17,20 @@ Flags are required by default:
   $ run --arg foo
   "foo"
 
+Docstring is optional:
+
+  $ use <<EOF
+  > (cmd/immediate
+  >   --arg :string)
+  > (pp arg)
+  > EOF
+
+  $ run
+  ! --arg: missing required argument
+  [1]
+  $ run --arg hi
+  "hi"
+
 Explicit required arguments:
 
   $ use <<EOF

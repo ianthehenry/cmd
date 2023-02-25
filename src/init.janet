@@ -374,7 +374,7 @@
   (defn next-arg []
     (++ i)
     (when (= i (length args))
-      (errorf "missing argument"))
+      (errorf "no value for argument"))
     (args i))
 
   (while (< i (length args))
