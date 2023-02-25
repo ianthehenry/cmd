@@ -99,3 +99,19 @@ Count parameters:
   $ run -vv foo
   ! unknown flag -vv
   [1]
+
+Flag parameters:
+
+  $ use <<EOF
+  > (cmd/immediate "doc"
+  >   -v (flag))
+  > (pp v)
+  > EOF
+
+  $ run
+  false
+  $ run -v
+  true
+  $ run -v -v
+  ! -v: flag already set
+  [1]
