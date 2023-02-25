@@ -9,7 +9,7 @@ Flags are required by default:
   > EOF
 
   $ run
-  ! --arg: missing required flag
+  ! --arg: missing required argument
   [1]
   $ run --arg
   ! --arg: missing argument
@@ -43,7 +43,7 @@ Aliases:
   $ run --other foo
   "foo"
   $ run --arg foo --other foo
-  ! --other: flag already set
+  ! --other: duplicate argument
   [1]
 
 Listed parameters are specified with square brackets:
@@ -97,7 +97,7 @@ Count parameters:
   $ run -v -v foo
   2
   $ run -vv foo
-  ! unknown flag -vv
+  ! unknown argument -vv
   [1]
 
 Flag parameters:
@@ -113,5 +113,5 @@ Flag parameters:
   $ run -v
   true
   $ run -v -v
-  ! -v: flag already set
+  ! -v: duplicate argument
   [1]

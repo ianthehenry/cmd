@@ -32,22 +32,22 @@ Exact duplicate flags:
 
   $ use <<<'(cmd/immediate "doc" --arg :string --arg :string)'
   $ run_err
-  ! script.janet:2:1: compile error: error: (macro) multiple flags named --arg
+  ! script.janet:2:1: compile error: error: (macro) multiple arguments with alias --arg
   [1]
 
 Different flags, same symbol:
 
   $ use <<<'(cmd/immediate "doc" --arg :string ---arg :string)'
   $ run_err
-  ! script.janet:2:1: compile error: error: (macro) duplicate flag arg
+  ! script.janet:2:1: compile error: error: (macro) duplicate argument arg
   [1]
   $ use <<<'(cmd/immediate "doc" [foo --arg] :string --foo :string)'
   $ run_err
-  ! script.janet:2:1: compile error: error: (macro) duplicate flag foo
+  ! script.janet:2:1: compile error: error: (macro) duplicate argument foo
   [1]
   $ use <<<'(cmd/immediate "doc" [foo --arg] :string [foo --bar] :string)'
   $ run_err
-  ! script.janet:2:1: compile error: error: (macro) duplicate flag foo
+  ! script.janet:2:1: compile error: error: (macro) duplicate argument foo
   [1]
 
 Illegal alias:

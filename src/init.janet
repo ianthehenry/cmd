@@ -46,7 +46,7 @@
    :finish (fn [val]
     (if (unset? val) default val))})
 
-(defn- assert-unset [val] (assert (unset? val) "flag already set"))
+(defn- assert-unset [val] (assert (unset? val) "duplicate argument"))
 
 # TODO: parse
 (defn- required [form]
@@ -55,7 +55,7 @@
    :update (fn [old new] (assert-unset old) new)
    :finish (fn [val]
     (when (unset? val)
-      (error "missing required flag"))
+      (error "missing required argument"))
     val)})
 
 (defn- flag []
@@ -123,21 +123,21 @@
     :keyword (required form)
     ))
 
-(defn- finish-flag [ctx flag next-state]
-  (def {:names names :sym sym :doc doc-string :type t} flag)
+(defn- finish-arg [ctx arg next-state]
+  (def {:names names :sym sym :doc doc-string :type t} arg)
 
   (when (nil? t)
-    (errorf "no type for %s" (primary-name flag)))
+    (errorf "no type for %s" (primary-name arg)))
 
   (each name names
     (when (in (ctx :names) name)
-      (errorf "multiple flags named %s" name))
+      (errorf "multiple arguments with alias %s" name))
     (put (ctx :names) name sym))
 
-  (when ((ctx :flags) sym)
-    (errorf "duplicate flag %s" sym))
+  (when ((ctx :args) sym)
+    (errorf "duplicate argument %s" sym))
 
-  (put (ctx :flags) sym
+  (put (ctx :args) sym
     {:doc doc-string
      :names names
      :type (parse-type t)})
@@ -146,27 +146,27 @@
 
 (var- state/arg nil)
 
-(defn- new-flag-state [spec-names]
+(defn- new-arg-state [spec-names]
   (assertf (not (empty? spec-names))
     "unexpected token %q" spec-names)
   (def first-name (first spec-names))
 
-  (def [sym flag-names]
+  (def [sym arg-names]
     (if (named-arg? first-name)
       [(symbol (string/triml first-name "-")) spec-names]
       [first-name (drop 1 spec-names)]))
 
-  (each flag flag-names
-    (unless (named-arg? flag)
+  (each arg arg-names
+    (unless (named-arg? arg)
       (errorf "all aliases must start with - %q" spec-names)))
 
-  (def flag-names (map string flag-names))
+  (def arg-names (map string arg-names))
 
-  (each name flag-names
+  (each name arg-names
     (when (all |(= $ (chr "-")) name)
-      (errorf "illegal flag name %s" name)))
+      (errorf "illegal argument name %s" name)))
 
-  (table/setproto @{:names flag-names :sym sym} state/arg))
+  (table/setproto @{:names arg-names :sym sym} state/arg))
 
 # TODO: there should probably be an escape hatch to declare a dynamic docstring.
 # Right now the doc string has to be a string literal, which is limiting.
@@ -175,14 +175,14 @@
       (when (self :doc)
         (error "docstring already set"))
       (set (self :doc) str))
-    :on-flag (fn [self ctx names]
-      (finish-flag ctx self (new-flag-state names)))
+    :on-arg (fn [self ctx names]
+      (finish-arg ctx self (new-arg-state names)))
     :on-other (fn [self ctx expr]
       (when-let [peg (self :type)]
         (errorf "multiple parsers specified for %s (got %q, already have %q)"
           (primary-name self) expr peg))
       (set (self :type) expr))
-    :on-eof (fn [self ctx] (finish-flag ctx self nil))})
+    :on-eof (fn [self ctx] (finish-arg ctx self nil))})
 
 (defn- set-ctx-doc [self ctx expr]
   (assertf (nil? (ctx :doc)) "unexpected token %q" expr)
@@ -190,7 +190,7 @@
 
 (def- state/pending
   @{:on-string set-ctx-doc
-    :on-flag (fn [self ctx names] (goto-state ctx (new-flag-state names)))
+    :on-arg (fn [self ctx names] (goto-state ctx (new-arg-state names)))
     :on-other (fn [self ctx token] (errorf "unexpected token %q" token))
     :on-eof (fn [_ _])})
 
@@ -203,7 +203,7 @@
 
 (defn- parse-specification [spec]
   (def ctx
-    @{:flags @{}
+    @{:args @{}
       :names @{}
       :state state/initial
       :declared-order @[]})
@@ -212,15 +212,15 @@
     (def state (ctx :state))
     (match (type+ token)
       :string (:on-string state ctx token)
-      (:tuple-brackets (all symbol? token)) (:on-flag state ctx token)
-      :symbol (:on-flag state ctx [token])
+      (:tuple-brackets (all symbol? token)) (:on-arg state ctx token)
+      :symbol (:on-arg state ctx [token])
       (:on-other state ctx token)))
   (:on-eof (ctx :state) ctx)
   ctx)
 
 (defmacro simple [spec & body]
   (unless (and (tuple? spec) (= (tuple/type spec) :brackets))
-    (errorf "expected bracketed list of flags, got %q" spec))
+    (errorf "expected bracketed list of args, got %q" spec))
   (def spec (parse-specification spec))
 
   ~(fn [& args]
@@ -235,7 +235,7 @@
     (print))
 
   (each [_ {:names names :type t :doc doc}]
-    (sorted-by 0 (pairs (spec :flags)))
+    (sorted-by 0 (pairs (spec :args)))
     (printf "%s %q %q" names t doc)))
 
 (defmacro- catseq [& args]
@@ -246,9 +246,9 @@
     ,;(seq [expr :in exprs]
         ~(eprintf "%s = %q" ,(string/format "%q" expr) ,expr))))
 
-(defn- quote-flags [flags]
+(defn- quote-args [args]
   ~(struct
-    ,;(catseq [[key {:type t}] :pairs flags]
+    ,;(catseq [[key {:type t}] :pairs args]
       [~',key t])))
 
 #(defn- quote-keys [struct]
@@ -272,10 +272,11 @@
     ([err fib]
       (errorf "%s: %s" ,name err))))
 
-# flags: sym -> type description
+# args: [string]
+# spec: sym -> type description
 # lookup: string -> sym
 # callbacks: string -> sym
-(defn- parse-args [args flags lookup refs]
+(defn- parse-args [args spec lookup refs]
   (var i 0)
   (def anons @[])
 
@@ -292,8 +293,8 @@
         (def sym (lookup arg))
         (when (nil? sym)
           # TODO: nice error message for negative number
-          (errorf "unknown flag %s" arg))
-        (def t (assert (flags sym)))
+          (errorf "unknown argument %s" arg))
+        (def t (assert (spec sym)))
         (def ref (assert (refs sym)))
 
         (try-with-context arg
@@ -320,16 +321,16 @@
   (def var-declarations
     (seq [sym :in syms
           :let [$sym (gensyms sym)
-                flag ((spec :flags) sym)
-                t (flag :type)]]
+                arg ((spec :args) sym)
+                t (arg :type)]]
       ~(var ,$sym ,(t :init))))
 
   (def finalizations
     (seq [sym :in syms
           :let [$sym (gensyms sym)
-                flag ((spec :flags) sym)
-                name (primary-name flag)
-                t (flag :type)]]
+                arg ((spec :args) sym)
+                name (primary-name arg)
+                t (arg :type)]]
       ~(as-macro
         ,try-with-context ,name
         (,(t :finish) ,$sym))))
@@ -346,7 +347,7 @@
       ,;var-declarations
       (,parse-args
         (,get-actual-args)
-        ,(quote-flags (spec :flags))
+        ,(quote-args (spec :args))
         ,(quote-values (spec :names))
         (struct ,;refs))
       [,;finalizations])
