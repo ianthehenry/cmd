@@ -2,26 +2,41 @@
 
 `cmd` is a Janet library for parsing command-line arguments.
 
+```janet
+(cmd/script "Print a friendly greeting"
+  --greeting (optional :string "Hello")
+  name :string)
+
+(printf "%s, %s!" greeting name)
 ```
-(cmd/script)
+```
+$ greet Janet
+Hello, Janet!
+
+$ greet Janet --greeting "Howdy there"
+Howdy there, Janet!
+
+$ greet --help
+TODO: unimplemented
 ```
 
-# Usage
+# Parsing behavior
 
-```
-(cmd/script "This is the help text"
-  --greeting (required :string))
+By default, `cmd` performs the following normalizations:
 
-(print greeting)
-```
-```
-$ run --greeting hello
-hello
-```
+| Before       | Becomes        |
+|--------------|----------------|
+| `-xyz`       | `-x -y -z`     |
+| `--foo=bar`  | `--foo bar`    |
+| `-xyz=bar`   | `-x -y -z bar` |
+
+Additionally, `cmd` will detect when your script is run with the Janet interpreter (`janet foo.janet --flag`), and will automatically ignore the `foo.janet` argument.
+
+You can bypass these normalizations by using some of the lower-level `cmd` helpers.
 
 # Aliases
 
-You can specify multiple aliases for a parameter:
+You can specify multiple aliases for named parameters:
 
 ```janet
 (cmd/script
@@ -33,7 +48,7 @@ $ run -f hello
 hello
 ```
 
-By default `cmd` will take the name of the Janet variable to create from the first alias specified. If you want to change this, specify an alias without any leading dashes:
+By default `cmd` will create a binding based on the first provided alias. If you want to change this, specify a symbol without any leading dashes:
 
 ```janet
 (cmd/script
@@ -56,7 +71,9 @@ Named parameters can have the following handlers:
 | 0 or more | `counted` | `tuple`, `array`, `last?` |
 | 1 or more |           | `tuple+`, `array+`, `last` |
 
-`tuple` and `array` accumulate all instances of a flag.
+Positional parameters have the same handlers, except that they cannot be `flag` or `counted`.
+
+There is also a special handler called `(escape)`, described below.
 
 ## `(required type)`
 
@@ -128,7 +145,7 @@ $ run -v -v -v
 verbosity: 3
 ```
 
-## `(tuple)` `(array)` `(tuple+)` `(array+)`
+## `(tuple t)` `(array t)` `(tuple+ t)` `(array+ t)`
 
 ```janet
 (cmd/script
@@ -142,7 +159,7 @@ $ run --word hi --word bye
 
 `(tuple+)` and `(array+)` require that at least one argument is provided.
 
-## `last` and `last?`
+## `(last type)` and `(last? type &opt default)`
 
 `last` is like `required`, but the parameter can be specified multiple times, and only the last argument matters.
 
@@ -159,6 +176,39 @@ default
 
 $ run --foo hi --foo bye
 bye
+```
+
+# `(escape &opt arg)`
+
+There are two kinds of escape: hard escape and soft escape.
+
+A "soft escape" causes all subsequent arguments to be parsed as positional arguments. It will not create a binding.
+
+```janet
+(cmd/script
+  name :string
+  -- (escape))
+(printf "Hello, %s!" name)
+```
+```
+$ run -- --bobby-tables
+Hello, --bobby-tables!
+```
+
+A hard escape stops all argument parsing, and creates a new binding that contains all subsequent arguments as strings.
+
+```
+(cmd/script
+  name (optional :string "anonymous")
+  rest (escape --))
+
+(printf "Hello, %s!" name)
+(pp rest)
+```
+```
+$ run -- Janet
+Hello, anonymous!
+("Janet")
 ```
 
 # Enums
@@ -232,5 +282,7 @@ You cannot make "hidden" aliases. All aliases will appear in the help output.
 - [ ] anonymous arguments
 - [ ] subcommands
 - [ ] tagged variants
-- [ ] splitting single characters
 - [ ] `foo=bar` argument handling
+- [ ] `-xyz` argument handling
+- [ ] `--help` and `help`
+- [ ] `--` hard and soft escape handlers
