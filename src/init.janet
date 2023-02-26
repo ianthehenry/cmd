@@ -86,6 +86,27 @@
     |$
     (errorf "unknown type declaration %q" type-declaration)))
 
+(defn- has? [p x y]
+  (= (p x) y))
+
+(defn- infer-tag [name-or-names]
+  (def name
+    (if (tuple? name-or-names)
+      (first name-or-names)
+      name-or-names))
+  (keyword (string/triml name "-")))
+
+(defn- tagged-variant-parser [name-or-names form]
+  (def $tag-and-parser
+    (if (has? type+ form :tuple-brackets)
+      (do
+        (assertf (has? length form 2)
+          "expected tuple of two elements, got %q" form)
+        (def [$tag $type] form)
+        ~[,$tag ,(parse-simple-type-declaration $type)])
+      ~[,(infer-tag name-or-names) ,(parse-simple-type-declaration form)]))
+  $tag-and-parser)
+
 (defn- get-dictionary-parser [dict]
   (def additional-names (named-params-from-keys dict))
   (def takes-value? (table? dict))
@@ -100,6 +121,7 @@
   (eachp [name-or-names type-declaration] dict
     (def key (if (tuple? name-or-names)
       (do
+        (assertf (not (empty? name-or-names)) "unexpected token %q" name-or-names)
         (def sym (gensym))
         (each name name-or-names
           (put-unique alias-remap (string name) sym "duplicate alias %q" name))
@@ -108,16 +130,20 @@
         (def name name-or-names)
         (put-unique alias-remap (string name) name "duplicate alias %q" name)
         name)))
-    (def value ((if takes-value? parse-simple-type-declaration |$) type-declaration))
-    (put-unique types-for-param key value "BUG: duplicate key %q" key))
+    (def $type
+      (if takes-value?
+        (tagged-variant-parser name-or-names type-declaration)
+        type-declaration))
+    (put-unique types-for-param key $type "BUG: duplicate key %q" key))
 
   (defn parse-string [types-for-param param-name value]
     (def key (alias-remap param-name))
     (def t (types-for-param key))
     (if takes-value?
-      # TODO: actually parse it as a function:
-      # (do (assert (string? value) (t value)))
-      (do (assert (string? value)) value)
+      (do
+        (assert (string? value))
+        (def [tag of-string] t)
+        [tag (of-string value)])
       (do (assert (nil? value)) t)))
 
   [additional-names

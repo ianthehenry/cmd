@@ -37,15 +37,40 @@ Tables can be used as enums with values:
   ! --foo: no value for argument
   [1]
   $ run --foo hi
-  "hi"
+  (:foo "hi")
   $ run --bar bye
-  "bye"
+  (:bar "bye")
   $ run --foo hi --foo bye
   ! --foo: duplicate argument
   [1]
   $ run --foo hi --bar bye
   ! --bar: duplicate argument
   [1]
+
+Variant tags:
+
+  $ use <<EOF
+  > (cmd/immediate "doc"
+  >   choice @{--foo [:x :string] --bar [:y :string]})
+  > (pp choice)
+  > EOF
+
+  $ run --foo hi
+  (:x "hi")
+  $ run --bar bye
+  (:y "bye")
+
+Dynamic tags:
+
+  $ use <<EOF
+  > (def x (+ 1 2))
+  > (cmd/immediate "doc"
+  >   choice @{--foo [x :string] --bar [:y :string]})
+  > (pp choice)
+  > EOF
+
+  $ run --foo hi
+  (3 "hi")
 
 Aliases within structs:
 

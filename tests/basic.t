@@ -12,7 +12,7 @@ Flags are required by default:
   ! --arg: missing required argument
   [1]
   $ run --arg
-  ! --arg: missing argument
+  ! --arg: no value for argument
   [1]
   $ run --arg foo
   "foo"
@@ -43,7 +43,7 @@ Explicit required arguments:
   ! --arg: missing required argument
   [1]
   $ run --arg
-  ! --arg: missing argument
+  ! --arg: no value for argument
   [1]
   $ run --arg foo
   "foo"
@@ -88,7 +88,7 @@ Listed parameters, tuple:
   $ run
   ()
   $ run --arg
-  ! --arg: missing argument
+  ! --arg: no value for argument
   [1]
   $ run --arg foo
   ("foo")
@@ -106,7 +106,7 @@ Listed array parameters, array:
   $ run
   @[]
   $ run --arg
-  ! --arg: missing argument
+  ! --arg: no value for argument
   [1]
   $ run --arg foo
   @["foo"]
@@ -172,12 +172,12 @@ Duplicates allowed, take last:
   ! --arg: missing required argument
   [1]
   $ run --arg
-  ! --arg: missing argument
+  ! --arg: no value for argument
   [1]
   $ run --arg foo
   "foo"
   $ run --arg foo --arg bar
   "bar"
   $ run --arg foo --arg
-  ! --arg: missing argument
+  ! --arg: no value for argument
   [1]

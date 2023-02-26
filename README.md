@@ -217,7 +217,8 @@ If the type of a parameter is a struct, it should enumerate a list of named para
 
 ```janet
 (cmd/script
-  format {--text :plain --html :rich})
+  format {--text :plain
+          --html :rich})
 
 (print format)
 ```
@@ -245,7 +246,8 @@ You can specify aliases inside a struct like this:
 
 ```janet
 (cmd/script
-  format {[--text -t] :plain --html :rich})
+  format {[--text -t] :plain
+          --html :rich})
 
 (print format)
 ```
@@ -256,21 +258,36 @@ $ script -t
 
 # Variants
 
-NOTE: currently unimplemented
-
-If the type of a parameter is a table, it's parsed similarly to an enum, but the values in the table should be a tuple of `[tag type]`.
+If the type of a parameter is a table, it's parsed similarly to an enum, but will result in a value of the form `[:tag arg]`.
 
 ```janet
 (cmd/script
-  format @{--text [:plain :string] --html [:rich :string]})
+  format @{--text :string
+           --html :string})
 (pp format)
 ```
 ```
 $ run --text ascii
-(:plain "ascii")
+(:text "ascii")
 
 $ run --html utf-8
-(:rich "utf-8")
+(:html "utf-8")
+```
+
+You can also specify an arbitrary expression to use as a custom tag, by making the values of the table bracketed tuples of the form `[tag type]`:
+
+```janet
+(cmd/script
+  format @{--text :string
+           --html [(+ 1 2) :string]})
+(pp format)
+```
+```
+$ run --text ascii
+(:text "ascii")
+
+$ run --html utf-8
+(3 "utf-8")
 ```
 
 # Shortcomings
@@ -281,7 +298,6 @@ You cannot make "hidden" aliases. All aliases will appear in the help output.
 
 - [ ] anonymous arguments
 - [ ] subcommands
-- [ ] tagged variants
 - [ ] `foo=bar` argument handling
 - [ ] `-xyz` argument handling
 - [ ] `--help` and `help`
