@@ -1,9 +1,9 @@
   $ source $TESTDIR/scaffold
 
-Flags are required by default:
+Parameters are required by default:
 
   $ use <<EOF
-  > (cmd/immediate "doc"
+  > (cmd/immediate
   >   --arg :string)
   > (pp arg)
   > EOF
@@ -17,19 +17,37 @@ Flags are required by default:
   $ run --arg foo
   "foo"
 
-Docstring is optional:
+Default value for optional flags is nil:
 
   $ use <<EOF
   > (cmd/immediate
-  >   --arg :string)
+  >   --arg (optional :string))
   > (pp arg)
   > EOF
 
   $ run
-  ! --arg: missing required argument
+  nil
+  $ run --arg
+  ! --arg: no value for argument
   [1]
-  $ run --arg hi
-  "hi"
+  $ run --arg foo
+  "foo"
+
+You can specify a custom default:
+
+  $ use <<EOF
+  > (cmd/immediate
+  >   --arg (optional :string "foo"))
+  > (pp arg)
+  > EOF
+
+  $ run
+  "foo"
+  $ run --arg
+  ! --arg: no value for argument
+  [1]
+  $ run --arg foo
+  "foo"
 
 Explicit required arguments:
 

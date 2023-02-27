@@ -3,6 +3,8 @@
 `cmd` is a Janet library for parsing command-line arguments.
 
 ```janet
+(import cmd)
+
 (cmd/script "Print a friendly greeting"
   --greeting (optional :string "Hello")
   name :string)
@@ -19,6 +21,23 @@ Howdy there, Janet!
 $ greet --help
 TODO: unimplemented
 ```
+
+# Usage
+
+TODO: this isn't accurate yet
+
+- `(cmd/script DSL)` parses `(dyn :args)` immediately and puts the results in the current scope.
+- `(cmd/fn [DSL] & body)` returns a function that takes a variadic number of string arguments and parses them according to the provided spec.
+- `(cmd/group name fn...)` returns a function that parses a hierarchical group.
+- `(cmd/main fn)` declares a `main` function that performs argument normalization and then calls the provided function.
+
+    `(cmd/main (cmd/fn [foo :string]
+        (print foo)))`
+
+Additionally, you can use:
+
+- `(cmd/spec DSL)` returns a spec as a first-class object.
+- `(cmd/parse spec & args)` parses a tuple or array of strings using the provided spec.
 
 # Parsing behavior
 
@@ -296,9 +315,9 @@ You cannot make "hidden" aliases. All aliases will appear in the help output.
 
 # TODO
 
-- [ ] anonymous arguments
 - [ ] subcommands
 - [ ] `foo=bar` argument handling
 - [ ] `-xyz` argument handling
 - [ ] `--help` and `help`
 - [ ] `--` hard and soft escape handlers
+- [ ] `tuple+` and `array+`

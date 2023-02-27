@@ -8,11 +8,14 @@
 # converting this into a format that can be interpreted.
 # as part of this, we'll need to evaluate the parser itself,
 # which we do not currently do.
-(defn- quote-params [params]
-  # because otherwise the prototype will be completely ignored...
+(defn- quote-named-params [params]
   ~(struct
-    ,;(catseq [[key {:type t}] :pairs params]
-      [~',key (struct/proto-flatten t)])))
+    ,;(catseq [[sym {:type t}] :pairs params]
+      [~',sym (struct/proto-flatten t)])))
+
+(defn- quote-positional-params [params]
+  ~[,;(seq [{:sym sym :type t} :in params]
+      {:type (struct/proto-flatten t) :sym ~',sym})])
 
 (defn- quote-keys [dict]
   ~(struct
@@ -47,13 +50,9 @@
 (defn- goto-state [ctx next-state]
   (set (ctx :state) next-state))
 
-# TODO: probably get rid of primary-name? at least in spec
-# errors. it's good to show it to the user, but if there's a
-# spec parse error it should probably treat the symbol as the
-# canonical name
 (defn- display-name [{:names names :sym sym}]
-  (if (empty? names)
-    sym
+  (if (or (nil? names) (empty? names))
+    (string sym)
     (string/join names "/")))
 
 (defn- type+ [form]
@@ -169,7 +168,7 @@
   (def [additional-names takes-value? $type parse-string] (get-parser type-declaration))
   [additional-names
    {:init unset
-    :takes-value? takes-value?
+    :value (if takes-value? :required :none)
     :type $type
     :update (fn [t name old new]
       (assert-unset old)
@@ -179,14 +178,19 @@
        (error "missing required argument"))
      val)}])
 
+(defn- rewrite-value [handler new]
+  (if (not= (handler :value) :none) new))
+
 (defn- handle/optional [type-declaration &opt default]
   (def [additional-names handler] (handle/required type-declaration))
   [additional-names (struct/with-proto handler
+    :value (rewrite-value handler :optional)
     :finish (fn [val] (if (unset? val) default val)))])
 
 (defn- handle/last [type-declaration]
   (def [additional-names handler] (handle/required type-declaration))
   [additional-names (struct/with-proto handler
+    :value (rewrite-value handler :variadic)
     :update (fn [t name _ new] ((handler :update) t name unset-sentinel new)))])
 
 (defn- handle/last? [type-declaration &opt default]
@@ -197,7 +201,7 @@
 (defn- handle/flag []
   [[]
    {:init unset
-    :takes-value? false
+    :value :none
     :type nil
     :update (fn [_ _ old _] (assert-unset old) true)
     :finish (fn [val]
@@ -206,7 +210,7 @@
 (defn- handle/counted []
   [[]
    {:init 0
-    :takes-value? false
+    :value :none
     :type nil
     :update (fn [_ _ old _] (+ old 1))
     :finish |$}])
@@ -215,7 +219,7 @@
   (def [additional-names takes-value? $type parse-string] (get-parser type-declaration))
   [additional-names
    {:init @[]
-    :takes-value? takes-value?
+    :value (if takes-value? :variadic :none)
     :type $type
     :update (fn [t name old new]
      (array/push old (parse-string t name new))
@@ -281,11 +285,30 @@
   (when ((ctx :params) sym)
     (errorf "duplicate parameter %s" sym))
 
-  (put (ctx :params) sym
+  (def positional? (empty? names))
+
+  (when positional?
+    (case (actual-type :value)
+      :none (errorf "illegal handler for positional argument %s" sym)
+      :variadic (do
+        (assertf (not (ctx :variadic-positional?))
+          "you cannot specify specify multiple variadic positional parameters")
+        (put ctx :variadic-positional? true))))
+
+  (def param (if positional?
+    {:doc doc-string
+     :type actual-type
+     :sym sym}
     {:doc doc-string
      :names names
-     :type actual-type})
-  (array/push (ctx :declared-order) sym)
+     :type actual-type}))
+
+  (put (ctx :params) sym param)
+
+  (if positional?
+    (array/push (ctx :positional-params) param)
+    (put (ctx :named-params) sym param))
+
   (goto-state ctx next-state))
 
 (var- state/param nil)
@@ -349,10 +372,13 @@
 
 (defn- parse-specification [spec]
   (def ctx
-    @{:params @{}
-      :names @{}
+    @{:params @{} # set of symbols
+      :named-params @{} # symbol -> param
+      :positional-params @[]
+      :names @{} # string -> symbol
+      :variadic-positional? false
       :state state/initial
-      :declared-order @[]})
+      })
 
   (each token spec
     (def state (ctx :state))
@@ -370,7 +396,7 @@
     (print))
 
   (each [_ {:names names :type t :doc doc}]
-    (sorted-by 0 (pairs (spec :params)))
+    (sorted-by 0 (pairs (spec :named-params)))
     (printf "%s %q %q" names t doc)))
 
 # TODO: you could imagine a debug mode
@@ -389,13 +415,63 @@
 (defn- get-ref [ref]
   ((ref :get)))
 
+# param: {sym arity type}
+(defn- assign-positional-args [args params refs]
+  (def num-args (length args))
+
+  (var num-required-params 0)
+  (var num-optional-params 0)
+  (each {:type {:value value-handling}} params
+    (case value-handling
+      :required (++ num-required-params)
+      :optional (++ num-optional-params)
+      :variadic nil
+      (errorf "BUG: unknown value handler %q" value-handling)))
+
+  (var num-optional-args
+    (min (- num-args num-required-params) num-optional-params))
+
+  (var num-variadic-args
+    (- num-args (+ num-required-params num-optional-args)))
+
+  (defn assign [{:type t :sym sym} arg]
+    (def ref (assert (refs sym)))
+    (def {:update handle :type t} t)
+    (try-with-context sym
+      (set-ref ref (handle t nil (get-ref ref) arg))))
+
+  (var arg-index 0)
+  (defn take-arg []
+    (assert (< arg-index num-args))
+    (def arg (args arg-index))
+    (++ arg-index)
+    arg)
+  (each param params
+    (case ((param :type) :value)
+      :required (do
+        (assertf (< arg-index num-args)
+          "missing required argument %s" (param :sym))
+        (assign param (take-arg)))
+      :optional
+        (when (> num-optional-args 0)
+          (assign param (take-arg))
+          (-- num-optional-args))
+      :variadic
+        (while (> num-variadic-args 0)
+          (assign param (take-arg))
+          (-- num-variadic-args))
+      (assert false)))
+
+  (when (< arg-index num-args)
+    (errorf "unexpected argument %s" (args arg-index))))
+
 # args: [string]
 # params: sym -> type description
 # param-names: string -> sym
 # refs: sym -> ref
-(defn- parse-args [args params param-names refs]
+(defn- parse-args [args named-params param-names positional-params refs]
   (var i 0)
-  (def anons @[])
+  (def positional-args @[])
 
   (defn next-arg []
     (++ i)
@@ -411,16 +487,16 @@
         (when (nil? sym)
           # TODO: nice error message for negative number
           (errorf "unknown parameter %s" arg))
-        (def t (assert (params sym)))
+        (def t (assert (named-params sym)))
         (def ref (assert (refs sym)))
-        (def {:update handle :type t :takes-value? takes-value?} t)
+        (def {:update handle :type t :value value} t)
+        (def takes-value? (not= value :none))
 
         (try-with-context arg
           (set-ref ref (handle t arg (get-ref ref) (if takes-value? (next-arg) nil)))))
-      (array/push anons arg))
+      (array/push positional-args arg))
     (++ i))
-
-    (assert (empty? anons) "don't know how to handle anonymous arguments yet"))
+  (assign-positional-args positional-args positional-params refs))
 
 (defn- is-probably-interpreter? []
   (= (last (string/split "/" (dyn *executable*))) "janet"))
@@ -431,7 +507,7 @@
     (dyn *args*)))
 
 (defn- assignment [spec]
-  (def syms (spec :declared-order))
+  (def syms (keys (spec :params)))
   (def gensyms (struct ;(catseq [sym :in syms] [sym (gensym)])))
 
   (def var-declarations
@@ -452,7 +528,7 @@
         (,(t :finish) ,$sym))))
 
   (def refs
-    (catseq [sym :in (spec :declared-order)
+    (catseq [sym :in syms
              :let [$sym (gensyms sym)]]
       [~',sym
         ~{:get (fn [] ,$sym)
@@ -463,8 +539,9 @@
       ,;var-declarations
       (,parse-args
         (,get-actual-args)
-        ,(quote-params (spec :params))
+        ,(quote-named-params (spec :named-params))
         ,(quote-values (spec :names))
+        ,(quote-positional-params (spec :positional-params))
         (struct ,;refs))
       [,;finalizations])
     ([err]

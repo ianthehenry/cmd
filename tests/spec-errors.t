@@ -114,3 +114,10 @@ Illegal variant tagging:
   $ run_err
   ! script.janet:2:1: compile error: error: (macro) expected tuple of two elements, got [:tag :string foo]
   [1]
+
+Multiple listed positional parameters:
+
+  $ use <<<'(cmd/immediate foo (tuple :string) bar (tuple :string))'
+  $ run_err
+  ! script.janet:2:1: compile error: error: (macro) you cannot specify specify multiple variadic positional parameters
+  [1]
