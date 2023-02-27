@@ -1,5 +1,5 @@
-(def number-type (fn [str] (assert (scan-number str))))
-(def string-type (fn [str] str))
+(defn- has? [p x y]
+  (= (p x) y))
 
 (defmacro- catseq [& args]
   ~(mapcat |$ (seq ,;args)))
@@ -80,13 +80,26 @@
   (assertf (nil? (table key)) str ;args)
   (put table key value))
 
-(defn- parse-simple-type-declaration [type-declaration]
-  (if (= type-declaration :string)
-    |$
-    (errorf "unknown type declaration %q" type-declaration)))
+(defn- builtin-type-parser [token]
+  (case token
+    :string |$
+    :number (error "unimplemented")
+    (errorf "unknown type %q" token)))
 
-(defn- has? [p x y]
-  (= (p x) y))
+(defn- peg-parser [peg]
+  (def peg (peg/compile peg))
+  (fn [str]
+    (def matches (peg/match peg str))
+    (if (and (not (nil? matches)) (has? length matches 1))
+      (first matches)
+      (errorf "unable to parse %q" str))))
+
+(defn- parse-simple-type-declaration [type-declaration]
+  (cond
+    (keyword? type-declaration) (builtin-type-parser type-declaration)
+    (and (has? type+ type-declaration :tuple-parens)
+      (= (first type-declaration) 'quasiquote)) ~(,peg-parser ,type-declaration)
+    type-declaration))
 
 (defn- infer-tag [name-or-names]
   (def name
@@ -244,7 +257,7 @@
 
   (def [op & args] form)
   (case op
-    'quasiquote (handle/required args)
+    'quasiquote (handle/required form)
     'required (handle/required ;(arity op args 1 1))
     'optional (handle/optional ;(arity op args 1 2))
     'last (handle/last ;(arity op args 1 1))

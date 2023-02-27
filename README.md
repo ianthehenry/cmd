@@ -315,9 +315,9 @@ You cannot make "hidden" aliases. All aliases will appear in the help output.
 
 # TODO
 
+- [ ] better built-in type parsers
 - [ ] subcommands
-- [ ] `foo=bar` argument handling
-- [ ] `-xyz` argument handling
+- [ ] argument normalization: `foo=bar` and `-xyz`
 - [ ] `--help` and `help`
 - [ ] `--` hard and soft escape handlers
 - [ ] `tuple+` and `array+`
