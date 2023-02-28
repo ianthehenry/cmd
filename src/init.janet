@@ -10,12 +10,12 @@
 # which we do not currently do.
 (defn- quote-named-params [params]
   ~(struct
-    ,;(catseq [[sym {:type t}] :pairs params]
-      [~',sym (struct/proto-flatten t)])))
+    ,;(catseq [[sym {:handler handler}] :pairs params]
+      [~',sym (struct/proto-flatten handler)])))
 
 (defn- quote-positional-params [params]
-  ~[,;(seq [{:sym sym :type t} :in params]
-      {:type (struct/proto-flatten t) :sym ~',sym})])
+  ~[,;(seq [{:sym sym :handler handler} :in params]
+      {:handler (struct/proto-flatten handler) :sym ~',sym})])
 
 (defn- quote-keys [dict]
   ~(struct
@@ -287,7 +287,7 @@
     (errorf "unknown handler %q" form)))
 
 (defn- finish-param [ctx param next-state]
-  (def {:names names :sym sym :doc doc-string :type handler} param)
+  (def {:names names :sym sym :doc doc-string :handler handler} param)
 
   (when (nil? handler)
     (errorf "no handler for %s" sym))
@@ -332,12 +332,12 @@
 
   (def param (if positional?
     {:doc doc-string
-     :type handler
+     :handler handler
      :sym sym}
     (if (not soft-escape?)
       {:doc doc-string
        :names names
-       :type handler})))
+       :handler handler})))
 
   (put (ctx :params) sym param)
 
@@ -387,10 +387,10 @@
     :on-param (fn [self ctx names]
       (finish-param ctx self (new-param-state names)))
     :on-other (fn [self ctx expr]
-      (when-let [handler (self :type)]
+      (when-let [handler (self :handler)]
         (errorf "multiple handlers specified for %s (got %q, already have %q)"
           (display-name self) expr handler))
-      (set (self :type) expr))
+      (set (self :handler) expr))
     :on-eof (fn [self ctx] (finish-param ctx self nil))})
 
 (defn- set-ctx-doc [self ctx expr]
@@ -435,9 +435,9 @@
     (print doc-string)
     (print))
 
-  (each [_ {:names names :type t :doc doc}]
+  (each [_ {:names names :handler handler :doc doc}]
     (sorted-by 0 (pairs (spec :named-params)))
-    (printf "%s %q %q" names t doc)))
+    (printf "%s %q %q" names handler doc)))
 
 # TODO: you could imagine a debug mode
 # where we preserve the stack frames here...
@@ -455,13 +455,13 @@
 (defn- get-ref [ref]
   ((ref :get)))
 
-# param: {sym arity type}
+# param: {sym handler}
 (defn- assign-positional-args [args params refs]
   (def num-args (length args))
 
   (var num-required-params 0)
   (var num-optional-params 0)
-  (each {:type {:value value-handling}} params
+  (each {:handler {:value value-handling}} params
     (case value-handling
       :required (++ num-required-params)
       :optional (++ num-optional-params)
@@ -475,9 +475,9 @@
   (var num-variadic-args
     (- num-args (+ num-required-params num-optional-args)))
 
-  (defn assign [{:type t :sym sym} arg]
+  (defn assign [{:handler handler :sym sym} arg]
     (def ref (assert (refs sym)))
-    (def {:update handle :type t} t)
+    (def {:update handle :type t} handler)
     (try-with-context sym
       (set-ref ref (handle t nil (get-ref ref) arg))))
 
@@ -488,7 +488,7 @@
     (++ arg-index)
     arg)
   (each param params
-    (case ((param :type) :value)
+    (case ((param :handler) :value)
       :required (do
         (assertf (< arg-index num-args)
           "missing required argument %s" (param :sym))
@@ -520,7 +520,7 @@
   # positional arguments declared after a hard positional escape
   (def positional-hard-escape-param
     (if-let [last-param (last positional-params)]
-      (if (= ((last-param :type) :value) :greedy) last-param)))
+      (if (= ((last-param :handler) :value) :greedy) last-param)))
 
   (defn next-arg []
     (when (= i (length args))
@@ -544,7 +544,7 @@
     (++ i)
     (if (positional? arg)
       (if (and positional-hard-escape-param (final-positional?))
-        (let [{:sym sym :type {:update handle :type t}} positional-hard-escape-param
+        (let [{:sym sym :handler {:update handle :type t}} positional-hard-escape-param
                ref (assert (refs sym))]
           (defn consume [value]
             (set-ref ref (handle t nil (get-ref ref) value)))
@@ -556,9 +556,9 @@
           # TODO: nice error message for negative number
           (nil? sym) (errorf "unknown parameter %s" arg)
           (boolean? sym) (set soft-escaped? true)
-          (let [param (assert (named-params sym))
+          (let [handler (assert (named-params sym))
                 ref (assert (refs sym))
-                {:update handle :type t :value value} param
+                {:update handle :type t :value value} handler
                 takes-value? (not= value :none)]
             (defn consume [value]
               (set-ref ref (handle t arg (get-ref ref) value)))
@@ -586,18 +586,18 @@
     (seq [sym :in syms
           :let [$sym (gensyms sym)
                 param ((spec :params) sym)
-                t (param :type)]]
-      ~(var ,$sym ,(t :init))))
+                handler (param :handler)]]
+      ~(var ,$sym ,(handler :init))))
 
   (def finalizations
     (seq [sym :in syms
           :let [$sym (gensyms sym)
                 param ((spec :params) sym)
                 name (display-name param)
-                t (param :type)]]
+                handler (param :handler)]]
       ~(as-macro
         ,try-with-context ,name
-        (,(t :finish) ,$sym))))
+        (,(handler :finish) ,$sym))))
 
   (def refs
     (catseq [sym :in syms

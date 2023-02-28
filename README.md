@@ -357,4 +357,3 @@ You cannot make "hidden" aliases. All aliases will appear in the help output.
 - [ ] argument normalization: `foo=bar` and `-xyz`
 - [ ] `--help` and `help`
 - [ ] `tuple+` and `array+`
-- [ ] rename type to handler
