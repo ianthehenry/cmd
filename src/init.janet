@@ -630,6 +630,6 @@
     ,(assignment spec)
     ,;body))
 
-(defmacro immediate [& spec]
+(defmacro script [& spec]
   (def spec (parse-specification spec))
   (assignment spec))

@@ -4,7 +4,7 @@ Quasiquote creates an automatic PEG parser:
 
   $ use <<EOF
   > (def a "a")
-  > (cmd/immediate "doc"
+  > (cmd/script "doc"
   >   --arg ~(<- (* ,a "b")))
   > (pp arg)
   > EOF
@@ -23,7 +23,7 @@ Quasiquote creates an automatic PEG parser:
 Arbitrary functions:
 
   $ use <<EOF
-  > (cmd/immediate "doc"
+  > (cmd/script "doc"
   >   --arg (required (fn [x] (string/ascii-upper x))))
   > (pp arg)
   > EOF

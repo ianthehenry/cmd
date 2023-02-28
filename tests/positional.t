@@ -3,7 +3,7 @@
 Positional parameters are required by default:
 
   $ use <<EOF
-  > (cmd/immediate
+  > (cmd/script
   >   arg :string)
   > (print arg)
   > EOF
@@ -20,7 +20,7 @@ Positional parameters are required by default:
 Multiple positional parameters:
 
   $ use <<EOF
-  > (cmd/immediate
+  > (cmd/script
   >   first :string
   >   second :string)
   > (print first)
@@ -40,7 +40,7 @@ Multiple positional parameters:
 Optional positional parameters:
 
   $ use <<EOF
-  > (cmd/immediate
+  > (cmd/script
   >   first :string
   >   second (optional :string "dflt"))
   > (pp [first second])
@@ -52,7 +52,7 @@ Optional positional parameters:
   ("foo" "bar")
 
   $ use <<EOF
-  > (cmd/immediate
+  > (cmd/script
   >   first (optional :string "dflt")
   >   second :string)
   > (pp [first second])
@@ -66,7 +66,7 @@ Optional positional parameters:
 Optional and required positional parameters interspersed:
 
   $ use <<EOF
-  > (cmd/immediate
+  > (cmd/script
   >   first :string
   >   second (optional :string)
   >   third (optional :string)
@@ -84,7 +84,7 @@ Optional and required positional parameters interspersed:
 Variadic positional parameters:
 
   $ use <<EOF
-  > (cmd/immediate
+  > (cmd/script
   >   arg (tuple :string))
   > (pp arg)
   > EOF
@@ -99,7 +99,7 @@ Variadic positional parameters:
 Variadic and required positional parameters:
 
   $ use <<EOF
-  > (cmd/immediate
+  > (cmd/script
   >   first (tuple :string)
   >   second :string)
   > (pp [first second])
@@ -113,7 +113,7 @@ Variadic and required positional parameters:
   (("1" "2") "3")
 
   $ use <<EOF
-  > (cmd/immediate
+  > (cmd/script
   >   first :string
   >   second (tuple :string))
   > (pp [first second])
@@ -129,7 +129,7 @@ Variadic and required positional parameters:
 Optional parameters take precedence over variadic parameters:
 
   $ use <<EOF
-  > (cmd/immediate
+  > (cmd/script
   >   first (tuple :string)
   >   second (optional :string))
   > (pp [first second])
@@ -147,7 +147,7 @@ Optional parameters take precedence over variadic parameters:
 Optional, required, and variadic parameters:
 
   $ use <<EOF
-  > (cmd/immediate
+  > (cmd/script
   >   first (optional :string)
   >   second (tuple :string)
   >   third :string

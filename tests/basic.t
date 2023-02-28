@@ -3,7 +3,7 @@
 Parameters are required by default:
 
   $ use <<EOF
-  > (cmd/immediate
+  > (cmd/script
   >   --arg :string)
   > (pp arg)
   > EOF
@@ -20,7 +20,7 @@ Parameters are required by default:
 Default value for optional flags is nil:
 
   $ use <<EOF
-  > (cmd/immediate
+  > (cmd/script
   >   --arg (optional :string))
   > (pp arg)
   > EOF
@@ -36,7 +36,7 @@ Default value for optional flags is nil:
 You can specify a custom default:
 
   $ use <<EOF
-  > (cmd/immediate
+  > (cmd/script
   >   --arg (optional :string "foo"))
   > (pp arg)
   > EOF
@@ -52,7 +52,7 @@ You can specify a custom default:
 Explicit required arguments:
 
   $ use <<EOF
-  > (cmd/immediate "doc"
+  > (cmd/script "doc"
   >   --arg (required :string))
   > (pp arg)
   > EOF
@@ -69,7 +69,7 @@ Explicit required arguments:
 Renamed flags:
 
   $ use <<EOF
-  > (cmd/immediate "doc"
+  > (cmd/script "doc"
   >   [renamed --arg] :string)
   > (pp renamed)
   > EOF
@@ -80,7 +80,7 @@ Renamed flags:
 Aliases:
 
   $ use <<EOF
-  > (cmd/immediate "doc"
+  > (cmd/script "doc"
   >   [--arg -a --other] :string)
   > (pp arg)
   > EOF
@@ -98,7 +98,7 @@ Aliases:
 Listed parameters, tuple:
 
   $ use <<EOF
-  > (cmd/immediate "doc"
+  > (cmd/script "doc"
   >   --arg (tuple :string))
   > (pp arg)
   > EOF
@@ -116,7 +116,7 @@ Listed parameters, tuple:
 Listed array parameters, array:
 
   $ use <<EOF
-  > (cmd/immediate "doc"
+  > (cmd/script "doc"
   >   --arg (array :string))
   > (pp arg)
   > EOF
@@ -134,7 +134,7 @@ Listed array parameters, array:
 Count parameters:
 
   $ use <<EOF
-  > (cmd/immediate "doc"
+  > (cmd/script "doc"
   >   -v (counted))
   > (pp v)
   > EOF
@@ -152,7 +152,7 @@ Count parameters:
 Flag parameters:
 
   $ use <<EOF
-  > (cmd/immediate "doc"
+  > (cmd/script "doc"
   >   -v (flag))
   > (pp v)
   > EOF
@@ -168,7 +168,7 @@ Flag parameters:
 Docstring is optional:
 
   $ use <<EOF
-  > (cmd/immediate --arg :string)
+  > (cmd/script --arg :string)
   > (pp arg)
   > EOF
 
@@ -181,7 +181,7 @@ Docstring is optional:
 Duplicates allowed, take last:
 
   $ use <<EOF
-  > (cmd/immediate "doc"
+  > (cmd/script "doc"
   >   --arg (last :string))
   > (pp arg)
   > EOF

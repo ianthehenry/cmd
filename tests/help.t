@@ -3,7 +3,7 @@
 No docstring:
 
   $ use <<EOF
-  > (cmd/immediate --arg :string)
+  > (cmd/script --arg :string)
   > (pp arg)
   > EOF
   $ run --arg hi
@@ -12,7 +12,7 @@ No docstring:
 Docstring:
 
   $ use <<EOF
-  > (cmd/immediate "doc" --arg :string)
+  > (cmd/script "doc" --arg :string)
   > (pp arg)
   > EOF
   $ run --arg hi
@@ -21,7 +21,7 @@ Docstring:
 Param docstring:
 
   $ use <<EOF
-  > (cmd/immediate "doc" --arg :string "arg doc")
+  > (cmd/script "doc" --arg :string "arg doc")
   > (pp arg)
   > EOF
   $ run --arg hi

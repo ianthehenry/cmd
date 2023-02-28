@@ -3,7 +3,7 @@
 Default value for optional flags is nil:
 
   $ use <<EOF
-  > (cmd/immediate "doc"
+  > (cmd/script "doc"
   >   --arg (optional :string))
   > (pp arg)
   > EOF
@@ -19,7 +19,7 @@ Default value for optional flags is nil:
 You can specify a custom default:
 
   $ use <<EOF
-  > (cmd/immediate "doc"
+  > (cmd/script "doc"
   >   --arg (optional :string "foo"))
   > (pp arg)
   > EOF

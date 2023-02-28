@@ -8,5 +8,5 @@ Cmd shouldn't export too many symbols:
   cmd/simple
   :current-file
   :source
-  cmd/immediate
+  cmd/script
   :macro-lints
