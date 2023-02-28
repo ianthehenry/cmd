@@ -11,7 +11,7 @@ Duplicate type:
 
   $ use <<<'(cmd/immediate --arg :string :string)'
   $ run_err
-  ! script.janet:2:1: compile error: error: (macro) multiple handlers specified for arg (got :string, already have :string)
+  ! script.janet:2:1: compile error: error: (macro) multiple handlers specified for --arg (got :string, already have :string)
   [1]
 
 Duplicate param docstring:
@@ -32,7 +32,7 @@ Exact duplicate flags:
 
   $ use <<<'(cmd/immediate "doc" --arg :string --arg :string)'
   $ run_err
-  ! script.janet:2:1: compile error: error: (macro) multiple parameters with alias --arg
+  ! script.janet:2:1: compile error: error: (macro) multiple parameters named --arg
   [1]
 
 Different flags, same symbol:
@@ -120,4 +120,18 @@ Multiple listed positional parameters:
   $ use <<<'(cmd/immediate foo (tuple :string) bar (tuple :string))'
   $ run_err
   ! script.janet:2:1: compile error: error: (macro) you cannot specify specify multiple variadic positional parameters
+  [1]
+
+Positional soft escape:
+
+  $ use <<<'(cmd/immediate foo (escape))'
+  $ run_err
+  ! script.janet:2:1: compile error: error: (macro) bad slot #1, expected string|symbol|keyword|buffer, got nil
+  [1]
+
+Positional argument after positional hard escape:
+
+  $ use <<<'(cmd/immediate foo (escape :string) bar :string)'
+  $ run_err
+  ! script.janet:2:1: compile error: error: (macro) only the final positional parameter can have an escape handler
   [1]

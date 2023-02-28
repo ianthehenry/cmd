@@ -201,7 +201,7 @@ bye
 
 There are two kinds of escape: hard escape and soft escape.
 
-A "soft escape" causes all subsequent arguments to be parsed as positional arguments. It will not create a binding.
+A "soft escape" causes all subsequent arguments to be parsed as positional arguments. Soft escapes will not create a binding.
 
 ```janet
 (cmd/script
@@ -214,20 +214,57 @@ $ run -- --bobby-tables
 Hello, --bobby-tables!
 ```
 
-A hard escape stops all argument parsing, and creates a new binding that contains all subsequent arguments as strings.
+A hard escape stops all argument parsing, and creates a new binding that contains all subsequent arguments parsed according to their provided type.
 
-```
+```janet
 (cmd/script
   name (optional :string "anonymous")
-  rest (escape --))
+  --rest (escape :string))
 
 (printf "Hello, %s!" name)
 (pp rest)
 ```
 ```
-$ run -- Janet
+$ run --rest Janet
 Hello, anonymous!
 ("Janet")
+```
+
+# Positional arguments
+
+You can mix required, optional, and variadic positional parameters, although you cannot specify more than one variadic positional parameter.
+
+```janet
+(cmd/script
+  first (required :string)
+  second (optional :string)
+  third (required :string))
+(pp [first second third])
+```
+```
+$ run foo bar
+("foo" nil "bar")
+
+$ run foo bar baz
+("foo" "bar" "baz")
+```
+
+The variadic positional parameter for a spec can be a hard escape. It will contain a tuple of the value of that positional argument followed by all the rest of the arguments.
+
+Only the final positional argument can be an escape, and like normal variadic positional arguments, it will take lower priority than optional positional arguments.
+
+```
+(cmd/script
+  name (optional :string "anonymous")
+  rest (escape :string))
+
+(printf "Hello, %s!" name)
+(pp rest)
+```
+```
+$ run Janet all the other args
+Hello, Janet!
+("all" "the" "other" "args")
 ```
 
 # Enums
@@ -319,5 +356,5 @@ You cannot make "hidden" aliases. All aliases will appear in the help output.
 - [ ] subcommands
 - [ ] argument normalization: `foo=bar` and `-xyz`
 - [ ] `--help` and `help`
-- [ ] `--` hard and soft escape handlers
 - [ ] `tuple+` and `array+`
+- [ ] rename type to handler

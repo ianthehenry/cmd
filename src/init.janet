@@ -243,6 +243,15 @@
   (def [additional-names handler] (handle/listed-array type-declaration))
   [additional-names (struct/with-proto handler :finish tuple/slice)])
 
+(defn- handle/escape [&opt type-declaration]
+  (if (nil? type-declaration)
+    [[] :soft-escape]
+    (do
+      (def [additional-names handler] (handle/listed-tuple type-declaration))
+      [additional-names (struct/with-proto handler
+        :value (rewrite-value handler :greedy)
+        :finish tuple/slice)])))
+
 # returns a tuple of [additional-names handler]
 (defn- parse-form-handler [form]
   (when (empty? form)
@@ -264,6 +273,7 @@
     'last? (handle/last? ;(arity op args 1 2))
     'counted (handle/counted ;(arity op args 0 0))
     'flag (handle/flag ;(arity op args 0 0))
+    'escape (handle/escape ;(arity op args 0 1))
     'tuple (handle/listed-tuple ;(arity op args 1 1))
     'array (handle/listed-array ;(arity op args 1 1))
     (errorf "unknown operation %q" op)))
@@ -282,7 +292,7 @@
   (when (nil? handler)
     (errorf "no handler for %s" sym))
 
-  (def [additional-names actual-type] (parse-handler handler))
+  (def [additional-names handler] (parse-handler handler))
   (def names
     (if (empty? additional-names)
       names
@@ -290,31 +300,44 @@
         (assertf (empty? names) "you must specify all aliases for %s inside {}" sym)
         additional-names)))
 
+  (def soft-escape? (= handler :soft-escape))
+  (def sym (if (not soft-escape?) sym))
+  (assert (or sym soft-escape?)
+    "only soft escapes can be nameless")
+
   (each name names
     (when (in (ctx :names) name)
-      (errorf "multiple parameters with alias %s" name))
-    (put (ctx :names) name sym))
+      (errorf "multiple parameters named %s" name))
+    (put (ctx :names) name (if soft-escape? true sym)))
 
-  (when ((ctx :params) sym)
+  (when (and sym ((ctx :params) sym))
     (errorf "duplicate parameter %s" sym))
 
   (def positional? (empty? names))
 
   (when positional?
-    (case (actual-type :value)
-      :none (errorf "illegal handler for positional argument %s" sym)
-      :variadic (do
-        (assertf (not (ctx :variadic-positional?))
-          "you cannot specify specify multiple variadic positional parameters")
-        (put ctx :variadic-positional? true))))
+    (assertf (not soft-escape?)
+      "positional argument %s cannot function as a soft escape" sym)
+    (assert (not= (ctx :variadic-positional) :greedy)
+      "only the final positional parameter can have an escape handler")
+    (def value-handling (handler :value))
+    (cond
+      (= value-handling :none) (errorf "illegal handler for positional argument %s" sym)
+      (or (= value-handling :variadic)
+          (= value-handling :greedy))
+        (do
+          (assert (nil? (ctx :variadic-positional))
+            "you cannot specify specify multiple variadic positional parameters")
+          (put ctx :variadic-positional value-handling))))
 
   (def param (if positional?
     {:doc doc-string
-     :type actual-type
+     :type handler
      :sym sym}
-    {:doc doc-string
-     :names names
-     :type actual-type}))
+    (if (not soft-escape?)
+      {:doc doc-string
+       :names names
+       :type handler})))
 
   (put (ctx :params) sym param)
 
@@ -326,6 +349,10 @@
 
 (var- state/param nil)
 
+(defn- symbol-of-name [name]
+  (def base (string/triml name "-"))
+  (if (empty? base) nil (symbol base)))
+
 (defn- new-param-state [spec-names]
   (assertf (not (empty? spec-names))
     "unexpected token %q" spec-names)
@@ -335,7 +362,7 @@
 
   (def [sym param-names]
     (if (named-param? first-name)
-      [(symbol (string/triml first-name "-")) spec-names]
+      [(symbol-of-name first-name) spec-names]
       [first-name (drop 1 spec-names)]))
 
   (each param param-names
@@ -344,9 +371,9 @@
 
   (def param-names (map string param-names))
 
-  (each name param-names
-    (when (all |(= $ (chr "-")) name)
-      (errorf "illegal parameter name %s" name)))
+  #(each name param-names
+  #  (when (all |(= $ (chr "-")) name)
+  #    (errorf "illegal parameter name %s" name)))
 
   (table/setproto @{:names param-names :sym sym} state/param))
 
@@ -362,7 +389,7 @@
     :on-other (fn [self ctx expr]
       (when-let [handler (self :type)]
         (errorf "multiple handlers specified for %s (got %q, already have %q)"
-          (self :sym) expr handler))
+          (display-name self) expr handler))
       (set (self :type) expr))
     :on-eof (fn [self ctx] (finish-param ctx self nil))})
 
@@ -385,11 +412,11 @@
 
 (defn- parse-specification [spec]
   (def ctx
-    @{:params @{} # set of symbols
+    @{:params @{} # symbol -> param
       :named-params @{} # symbol -> param
       :positional-params @[]
       :names @{} # string -> symbol
-      :variadic-positional? false
+      :variadic-positional nil
       :state state/initial
       })
 
@@ -439,6 +466,7 @@
       :required (++ num-required-params)
       :optional (++ num-optional-params)
       :variadic nil
+      :greedy nil
       (errorf "BUG: unknown value handler %q" value-handling)))
 
   (var num-optional-args
@@ -473,6 +501,7 @@
         (while (> num-variadic-args 0)
           (assign param (take-arg))
           (-- num-variadic-args))
+      :greedy nil
       (assert false)))
 
   (when (< arg-index num-args)
@@ -480,35 +509,65 @@
 
 # args: [string]
 # params: sym -> type description
-# param-names: string -> sym
+# param-names: string -> sym|bool
 # refs: sym -> ref
 (defn- parse-args [args named-params param-names positional-params refs]
   (var i 0)
   (def positional-args @[])
+  (var soft-escaped? false)
+
+  # TODO: we need to set an invariant that there can be no
+  # positional arguments declared after a hard positional escape
+  (def positional-hard-escape-param
+    (if-let [last-param (last positional-params)]
+      (if (= ((last-param :type) :value) :greedy) last-param)))
 
   (defn next-arg []
-    (++ i)
     (when (= i (length args))
       (errorf "no value for argument"))
-    (args i))
+    (def arg (args i))
+    (++ i)
+    arg)
+
+  (defn positional? [arg]
+    (or soft-escaped?
+      (not (string/has-prefix? "-" arg))))
+
+  (defn handle [sym param])
+
+  (defn final-positional? []
+    (= (length positional-args)
+       (- (length positional-params) 1)))
 
   (while (< i (length args))
     (def arg (args i))
-    (if (string/has-prefix? "-" arg)
-      (do
-        (def sym (param-names arg))
-        (when (nil? sym)
+    (++ i)
+    (if (positional? arg)
+      (if (and positional-hard-escape-param (final-positional?))
+        (let [{:sym sym :type {:update handle :type t}} positional-hard-escape-param
+               ref (assert (refs sym))]
+          (defn consume [value]
+            (set-ref ref (handle t nil (get-ref ref) value)))
+          (consume arg)
+          (while (< i (length args)) (consume (next-arg))))
+        (array/push positional-args arg))
+      (let [sym (param-names arg)]
+        (cond
           # TODO: nice error message for negative number
-          (errorf "unknown parameter %s" arg))
-        (def t (assert (named-params sym)))
-        (def ref (assert (refs sym)))
-        (def {:update handle :type t :value value} t)
-        (def takes-value? (not= value :none))
-
-        (try-with-context arg
-          (set-ref ref (handle t arg (get-ref ref) (if takes-value? (next-arg) nil)))))
-      (array/push positional-args arg))
-    (++ i))
+          (nil? sym) (errorf "unknown parameter %s" arg)
+          (boolean? sym) (set soft-escaped? true)
+          (let [param (assert (named-params sym))
+                ref (assert (refs sym))
+                {:update handle :type t :value value} param
+                takes-value? (not= value :none)]
+            (defn consume [value]
+              (set-ref ref (handle t arg (get-ref ref) value)))
+            (try-with-context arg
+              (case value
+                :none (consume nil)
+                :greedy (while (< i (length args)) (consume (next-arg)))
+                (consume (next-arg))))
+            )))))
   (assign-positional-args positional-args positional-params refs))
 
 (defn- is-probably-interpreter? []
@@ -557,7 +616,8 @@
         ,(quote-positional-params (spec :positional-params))
         (struct ,;refs))
       [,;finalizations])
-    ([err]
+    ([err fib]
+      #(debug/stacktrace fib err "")
       (eprint err)
       (os/exit 1)
       ))))
