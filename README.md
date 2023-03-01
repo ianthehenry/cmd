@@ -15,10 +15,12 @@
 ```
 $ greet Janet
 Hello, Janet!
-
+```
+```
 $ greet Janet --greeting "Howdy there"
 Howdy there, Janet!
-
+```
+```
 $ greet --help
 Print a friendly greeting
 
