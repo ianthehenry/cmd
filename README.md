@@ -1,4 +1,4 @@
-# `cmd`
+# `cmd` is a work in progress. It's not complete, and may not work at all!
 
 `cmd` is a Janet library for parsing command-line arguments.
 
@@ -7,6 +7,7 @@
 
 (cmd/script "Print a friendly greeting"
   --greeting (optional :string "Hello")
+    "What to say. Defaults to hello."
   name :string)
 
 (printf "%s, %s!" greeting name)
@@ -19,16 +20,20 @@ $ greet Janet --greeting "Howdy there"
 Howdy there, Janet!
 
 $ greet --help
-TODO: unimplemented
+Print a friendly greeting
+
+  greet NAME
+
+=== flags ===
+
+  [--greeting STRING] : What to say. Defaults to hello.
 ```
 
 # Usage
 
-TODO: this isn't accurate yet
-
 - `(cmd/script DSL)` parses `(dyn :args)` immediately and puts the results in the current scope.
 - `(cmd/simple [DSL] & body)` returns a function that takes a variadic number of string arguments and parses them according to the provided spec.
-- `(cmd/group name fn...)` returns a function that parses a hierarchical group.
+- `(cmd/group & name fn)` returns a function that parses a hierarchical group.
 - `(cmd/main fn)` declares a `main` function that performs argument normalization and then calls the provided function.
 
 Additionally, you can use:
@@ -37,7 +42,7 @@ Additionally, you can use:
 - `(cmd/parse spec args)` parses the provided arguments according to the spec, and returns a table of *keywords*, not symbols.
 - `(cmd/args)` returns `(dyn *args*)`, normalized according to the rules below.
 
-There is currently no way to produce a command-line spec except by using the DSL, so it's difficult to can't construct one dynamically.
+There is currently no way to produce a command-line spec except by using the DSL, so it's difficult to construct one dynamically.
 
 # Aliases
 
@@ -235,7 +240,7 @@ $ run foo bar baz
 ("foo" "bar" "baz")
 ```
 
-The variadic positional parameter for a spec can be a hard escape. It will contain a tuple of the value of that positional argument followed by all the rest of the arguments.
+The variadic positional parameter for a spec can be a hard escape, if it appears as the final positional parameter in your spec. The value of a hard positional escape is a tuple containing the value of that positional argument followed by all subsequent arguments (whether or not they would normally parse as `--params`).
 
 Only the final positional argument can be an escape, and like normal variadic positional arguments, it will take lower priority than optional positional arguments.
 
@@ -355,7 +360,7 @@ You cannot specify separate docstrings for different enum or variant choices. Al
 # TODO
 
 - [ ] `--help` and `help`
+- [ ] implement `cmd/group`
 - [ ] more built-in type parsers
-- [ ] subcommands
 - [ ] `tuple+` and `array+`
 - [ ] put brackets around `tuple` but not `tuple+` args in help output

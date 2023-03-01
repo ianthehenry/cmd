@@ -534,7 +534,7 @@
       (def lines (if (<= total-length 30)
         [(string/join formatted-names ", ")]
         formatted-names))
-      [lines (param :doc)]))
+      [lines (or (param :doc) "undocumented")]))
 
   (unless (empty? named-arg-entries)
     (print "=== flags ===\n")

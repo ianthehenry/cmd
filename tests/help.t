@@ -100,4 +100,3 @@ word wrap of argument names:
     --baz
     --qux
     --b   : very little doc
-
