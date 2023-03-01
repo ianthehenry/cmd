@@ -1,4 +1,4 @@
-# `cmd` is a work in progress. It's not complete, and may not work at all!
+# `cmd` is a work in progress. It's not ready for you to use it yet!
 
 `cmd` is a Janet library for parsing command-line arguments.
 
