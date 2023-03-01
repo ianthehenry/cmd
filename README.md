@@ -27,31 +27,17 @@ TODO: unimplemented
 TODO: this isn't accurate yet
 
 - `(cmd/script DSL)` parses `(dyn :args)` immediately and puts the results in the current scope.
-- `(cmd/fn [DSL] & body)` returns a function that takes a variadic number of string arguments and parses them according to the provided spec.
+- `(cmd/simple [DSL] & body)` returns a function that takes a variadic number of string arguments and parses them according to the provided spec.
 - `(cmd/group name fn...)` returns a function that parses a hierarchical group.
 - `(cmd/main fn)` declares a `main` function that performs argument normalization and then calls the provided function.
 
-    `(cmd/main (cmd/fn [foo :string]
-        (print foo)))`
-
 Additionally, you can use:
 
-- `(cmd/spec DSL)` returns a spec as a first-class object.
-- `(cmd/parse spec & args)` parses a tuple or array of strings using the provided spec.
+- `(cmd/spec DSL)` returns a spec as a first-class value.
+- `(cmd/parse spec args)` parses the provided arguments according to the spec, and returns a table of *keywords*, not symbols.
+- `(cmd/args)` returns `(dyn *args*)`, normalized according to the rules below.
 
-# Parsing behavior
-
-By default, `cmd` performs the following normalizations:
-
-| Before       | Becomes        |
-|--------------|----------------|
-| `-xyz`       | `-x -y -z`     |
-| `--foo=bar`  | `--foo bar`    |
-| `-xyz=bar`   | `-x -y -z bar` |
-
-Additionally, `cmd` will detect when your script is run with the Janet interpreter (`janet foo.janet --flag`), and will automatically ignore the `foo.janet` argument.
-
-You can bypass these normalizations by using some of the lower-level `cmd` helpers.
+There is currently no way to produce a command-line spec except by using the DSL, so it's difficult to can't construct one dynamically.
 
 # Aliases
 
@@ -346,14 +332,30 @@ $ run --html utf-8
 (3 "utf-8")
 ```
 
+# Argument normalization
+
+By default, `cmd` performs the following normalizations:
+
+| Before       | After          |
+|--------------|----------------|
+| `-xyz`       | `-x -y -z`     |
+| `--foo=bar`  | `--foo bar`    |
+| `-xyz=bar`   | `-x -y -z bar` |
+
+Additionally, `cmd` will detect when your script is run with the Janet interpreter (`janet foo.janet --flag`), and will automatically ignore the `foo.janet` argument.
+
+You can bypass these normalizations by using `(cmd/parse)`, which will parse exactly the list of arguments you provide it.
+
 # Shortcomings
 
 You cannot make "hidden" aliases. All aliases will appear in the help output.
 
+You cannot specify separate docstrings for different enum or variant choices. All of the parameters will be grouped into a single entry in the help output, so the docstring should describe all of the choices.
+
 # TODO
 
-- [ ] better built-in type parsers
-- [ ] subcommands
-- [ ] argument normalization: `foo=bar` and `-xyz`
 - [ ] `--help` and `help`
+- [ ] more built-in type parsers
+- [ ] subcommands
 - [ ] `tuple+` and `array+`
+- [ ] put brackets around `tuple` but not `tuple+` args in help output

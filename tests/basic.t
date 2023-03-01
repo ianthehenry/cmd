@@ -146,8 +146,7 @@ Count parameters:
   $ run -v -v
   2
   $ run -vv
-  ! unknown parameter -vv
-  [1]
+  2
 
 Flag parameters:
 

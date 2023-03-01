@@ -4,14 +4,21 @@
 (defmacro- catseq [& args]
   ~(mapcat |$ (seq ,;args)))
 
+(defn- ^ [chars]
+  ~(* (not (set ,chars)) 1))
+
+(defn- is-probably-interpreter? []
+  (= (last (string/split "/" (dyn *executable*))) "janet"))
+
 # TODO: this needs a more clear name. what we're doing is
 # converting this into a format that can be interpreted.
 # as part of this, we'll need to evaluate the parser itself,
 # which we do not currently do.
 (defn- quote-named-params [params]
   ~(struct
-    ,;(catseq [[sym {:handler handler}] :pairs params]
-      [~',sym (struct/proto-flatten handler)])))
+    ,;(catseq [[sym {:handler handler :doc doc}] :pairs params]
+      [~',sym {:handler (struct/proto-flatten handler)
+               :doc doc}])))
 
 (defn- quote-positional-params [params]
   ~[,;(seq [{:sym sym :handler handler} :in params]
@@ -410,6 +417,9 @@
       (goto-state ctx state/pending))}
     state/pending))
 
+# Returns an abstract syntax tree
+# that can be evaluated to produce
+# a spec
 (defn- parse-specification [spec]
   (def ctx
     @{:params @{} # symbol -> param
@@ -418,6 +428,7 @@
       :names @{} # string -> symbol
       :variadic-positional nil
       :state state/initial
+      :doc nil
       })
 
   (each token spec
@@ -428,16 +439,115 @@
       :symbol (:on-param state ctx [token])
       (:on-other state ctx token)))
   (:on-eof (ctx :state) ctx)
+
   ctx)
 
-(defn- print-help [spec]
-  (when-let [doc-string (spec :doc)]
+(defn- bake-spec [ctx]
+  {:named (quote-named-params (ctx :named-params))
+   :names (quote-values (ctx :names))
+   :pos (quote-positional-params (ctx :positional-params))
+   :doc (ctx :doc)})
+
+(defn- executable-name []
+  (if (is-probably-interpreter?)
+    (or (first (dyn *args*)) (dyn *executable*))
+      (dyn *executable*)))
+
+(defn- transpose-dict [dict]
+  (def result @{})
+  (eachp [k v] dict
+    (when (nil? (result v))
+      (put result v @[]))
+    (array/push (result v) k))
+  result)
+
+(defn- format-param [str handler]
+  (def value-handling (handler :value))
+  (case value-handling
+    :required str
+    :none (string "["str"]")
+    :optional (string "["str"]")
+    :variadic (string "["str"...]")
+    :greedy (string "["str"...]")
+    (errorf "BUG: unknown value handling %q" value-handling)))
+
+(defn- fold-map [f g init coll]
+  (reduce (fn [acc x] (f acc (g x))) init coll))
+
+(defn- sum-by [f coll]
+  (fold-map + f 0 coll))
+
+(defn- max-by [f coll]
+  (fold-map max f 0 coll))
+
+(defn- right-pad [str len]
+  (string str (string/repeat " " (max 0 (- len (length str))))))
+
+(defn- word-wrap-line [line len]
+  (def lines @[])
+  (var current-line @"")
+  (each word (string/split " " line)
+    (when (and (not (empty? current-line))
+             (>= (+ (length current-line) 1 (length word)) len))
+      (array/push lines current-line)
+      (set current-line @""))
+    (when (not (empty? current-line))
+      (buffer/push-string current-line " "))
+    (buffer/push-string current-line word))
+  (array/push lines current-line)
+  lines)
+
+(defn- word-wrap [str len]
+  (mapcat |(word-wrap-line $ len) (string/split "\n" str)))
+
+(defn- zip-lines [lefts rights f]
+  (def end (max (length lefts) (length rights)))
+  (def last-i (- end 1))
+  (for i 0 end
+    (f (= i 0) (= i last-i) (get lefts i "") (get rights i ""))))
+
+(defn print-help [spec]
+  (def {:named named-params
+        :names param-names
+        :pos positional-params
+        :doc doc-string} spec)
+
+  (when doc-string
     (print doc-string)
     (print))
 
-  (each [_ {:names names :handler handler :doc doc}]
-    (sorted-by 0 (pairs (spec :named-params)))
-    (printf "%s %q %q" names handler doc)))
+  (prin "  " (executable-name))
+  (each param positional-params
+    (prin " ")
+    (def name (or (param :doc) (string/ascii-upper (param :sym))))
+    (def value-handling ((param :handler) :value))
+    (prin (format-param name (param :handler))))
+  (print "\n")
+
+  (def params-and-names (sorted-by 0 (pairs (transpose-dict param-names))))
+  (def named-arg-entries
+    (seq [[sym names] :in params-and-names]
+      (def param (named-params sym))
+      (def names (sorted-by |(string/triml $ "-") names))
+      (def formatted-names (map |(format-param $ (param :handler)) names))
+      (def total-length (sum-by |(+ (length $) 3) formatted-names))
+      (def lines (if (<= total-length 30)
+        [(string/join formatted-names ", ")]
+        formatted-names))
+      [lines (param :doc)]))
+
+  (unless (empty? named-arg-entries)
+    (print "=== flags ===\n")
+
+    (def left-column-width (max-by |(max-by length (0 $)) named-arg-entries))
+    (each [lefts docstring] named-arg-entries
+      (def rights (word-wrap docstring (max 40 (- 80 left-column-width))))
+
+      (zip-lines lefts rights (fn [first? last? left right]
+        (def separator (if first? " : " (if (empty? right) "" "   ")))
+        (def pad-to (if (empty? right) 0 left-column-width))
+        (print "  " (right-pad left pad-to) separator right)
+        )))))
 
 # TODO: you could imagine a debug mode
 # where we preserve the stack frames here...
@@ -511,7 +621,7 @@
 # params: sym -> type description
 # param-names: string -> sym|bool
 # refs: sym -> ref
-(defn- parse-args [args named-params param-names positional-params refs]
+(defn- parse-args [args {:named named-params :names param-names :pos positional-params} refs]
   (var i 0)
   (def positional-args @[])
   (var soft-escaped? false)
@@ -556,7 +666,8 @@
           # TODO: nice error message for negative number
           (nil? sym) (errorf "unknown parameter %s" arg)
           (boolean? sym) (set soft-escaped? true)
-          (let [handler (assert (named-params sym))
+          (let [param (assert (named-params sym))
+                handler (param :handler)
                 ref (assert (refs sym))
                 {:update handle :type t :value value} handler
                 takes-value? (not= value :none)]
@@ -570,29 +681,44 @@
             )))))
   (assign-positional-args positional-args positional-params refs))
 
-(defn- is-probably-interpreter? []
-  (= (last (string/split "/" (dyn *executable*))) "janet"))
+(def- -foo=bar ~(* (<- (* "-" (some ,(^ "= ")))) "=" (<- (to -1))))
+(def- -xyz ~(* "-" (group (some (<- ,(^ "- ")))) -1))
 
-(defn- get-actual-args []
-  (if (is-probably-interpreter?)
-    (drop 1 (dyn *args*))
-    (dyn *args*)))
+(defn- split-short-flags [arg]
+  (if-let [[args] (peg/match -xyz arg)]
+    (map |(string "-" $) args)
+    [arg]))
+
+(defn- normalize-args [args]
+  (def result @[])
+  (each arg args
+    (if-let [[arg val] (peg/match -foo=bar arg)]
+      (array/concat result (split-short-flags arg) [val])
+      (array/concat result (split-short-flags arg))))
+  result)
+
+(defn args []
+  (normalize-args
+    (if (is-probably-interpreter?)
+      (drop 1 (dyn *args*))
+      (dyn *args*))))
 
 (defn- assignment [spec]
-  (def syms (keys (spec :params)))
+  (def params (spec :params))
+  (def syms (keys params))
   (def gensyms (struct ;(catseq [sym :in syms] [sym (gensym)])))
 
   (def var-declarations
     (seq [sym :in syms
           :let [$sym (gensyms sym)
-                param ((spec :params) sym)
+                param (params sym)
                 handler (param :handler)]]
       ~(var ,$sym ,(handler :init))))
 
   (def finalizations
     (seq [sym :in syms
           :let [$sym (gensyms sym)
-                param ((spec :params) sym)
+                param (params sym)
                 name (display-name param)
                 handler (param :handler)]]
       ~(as-macro
@@ -610,10 +736,8 @@
     (try (do
       ,;var-declarations
       (,parse-args
-        (,get-actual-args)
-        ,(quote-named-params (spec :named-params))
-        ,(quote-values (spec :names))
-        ,(quote-positional-params (spec :positional-params))
+        (,args)
+        ,(bake-spec spec)
         (struct ,;refs))
       [,;finalizations])
     ([err fib]
@@ -633,3 +757,25 @@
 (defmacro script [& spec]
   (def spec (parse-specification spec))
   (assignment spec))
+
+(defn parse [spec args]
+  (def handlers @{})
+  (eachp [sym {:handler handler}] (spec :named)
+    (put handlers sym handler))
+  (each {:sym sym :handler handler} (spec :pos)
+    (put handlers sym handler))
+
+  (def scope (tabseq [[sym handler] :pairs handlers]
+    sym (handler :init)))
+  (def refs (tabseq [sym :keys handlers]
+    sym {:get (fn [] (scope sym)) :set (fn [x] (put scope sym x))}))
+  (parse-args args spec refs)
+  (def result @{})
+  (eachp [sym val] scope
+    (def handler (assert (handlers sym)))
+    (put result (keyword sym) ((handler :finish) val)))
+  result)
+
+(defmacro spec [& s]
+  (bake-spec (parse-specification s)))
+
