@@ -142,8 +142,6 @@ dry run: true
 
 ## `(counted)`
 
-TODO: update once single-character splitting works
-
 ```janet
 (cmd/script
   [verbosiy -v] (counter))
@@ -153,7 +151,7 @@ TODO: update once single-character splitting works
 $ run
 verbosity: 0
 
-$ run -v -v -v
+$ run -vvv
 verbosity: 3
 ```
 
