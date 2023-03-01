@@ -155,7 +155,7 @@ $ run -vvv
 verbosity: 3
 ```
 
-## `(tuple t)` `(array t)` `(tuple+ t)` `(array+ t)`
+## `({array,tuple}{,+} type)`
 
 ```janet
 (cmd/script
@@ -188,7 +188,7 @@ $ run --foo hi --foo bye
 bye
 ```
 
-# `(escape &opt arg)`
+# `(escape &opt type)`
 
 There are two kinds of escape: hard escape and soft escape.
 
