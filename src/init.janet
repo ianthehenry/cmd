@@ -183,7 +183,6 @@
      (parse-simple-type-declaration type-declaration)
      (fn [parse-string name value] (parse-string value))]))
 
-# TODO: parse
 (defn- handle/required [type-declaration]
   (def [additional-names takes-value? $type parse-string] (get-parser type-declaration))
   [additional-names
@@ -227,6 +226,15 @@
     :finish (fn [val]
      (if (unset? val) false val))}])
 
+(defn- handle/effect [f]
+  [[]
+  {:init unset
+   :value :none
+   :type f
+   :symless true
+   :update (fn [t _ old _] (assert-unset old) t)
+   :finish (fn [val] (if (unset? val) nil (val)))}])
+
 (defn- handle/counted []
   [[]
    {:init 0
@@ -252,7 +260,7 @@
 
 (defn- handle/escape [&opt type-declaration]
   (if (nil? type-declaration)
-    [[] :soft-escape]
+    [[] {:symless true :value :soft-escape}]
     (do
       (def [additional-names handler] (handle/listed-tuple type-declaration))
       [additional-names (struct/with-proto handler
@@ -281,6 +289,7 @@
     'counted (handle/counted ;(arity op args 0 0))
     'flag (handle/flag ;(arity op args 0 0))
     'escape (handle/escape ;(arity op args 0 1))
+    'effect (handle/effect ;(arity op args 1 1))
     'tuple (handle/listed-tuple ;(arity op args 1 1))
     'array (handle/listed-array ;(arity op args 1 1))
     (errorf "unknown operation %q" op)))
@@ -307,24 +316,25 @@
         (assertf (empty? names) "you must specify all aliases for %s inside {}" sym)
         additional-names)))
 
-  (def soft-escape? (= handler :soft-escape))
-  (def sym (if (not soft-escape?) sym))
-  (assert (or sym soft-escape?)
-    "only soft escapes can be nameless")
+  (def symless? (handler :symless))
+  (def soft-escape? (= (handler :value) :soft-escape))
+  (assert (or sym symless?)
+    "only soft escapes and effects can be anonymous")
+  (def sym (if symless? (gensym) sym))
 
   (each name names
     (when (in (ctx :names) name)
       (errorf "multiple parameters named %s" name))
-    (put (ctx :names) name (if soft-escape? true sym)))
+    (put (ctx :names) name sym))
 
-  (when (and sym ((ctx :params) sym))
+  (when ((ctx :params) sym)
     (errorf "duplicate parameter %s" sym))
 
   (def positional? (empty? names))
 
   (when positional?
-    (assertf (not soft-escape?)
-      "positional argument %s cannot function as a soft escape" sym)
+    (assertf (not symless?)
+      "positional argument needs a valid symbol")
     (assert (not= (ctx :variadic-positional) :greedy)
       "only the final positional parameter can have an escape handler")
     (def value-handling (handler :value))
@@ -341,10 +351,9 @@
     {:doc doc-string
      :handler handler
      :sym sym}
-    (if (not soft-escape?)
-      {:doc doc-string
-       :names names
-       :handler handler})))
+    {:doc doc-string
+     :names names
+     :handler handler}))
 
   (put (ctx :params) sym param)
 
@@ -618,8 +627,10 @@
     (errorf "unexpected argument %s" (args arg-index))))
 
 # args: [string]
-# params: sym -> type description
-# param-names: string -> sym|bool
+# spec:
+#   named-params: sym -> param
+#   param-names: string -> sym
+#   pos: [param]
 # refs: sym -> ref
 (defn- parse-args [args {:named named-params :names param-names :pos positional-params} refs]
   (var i 0)
@@ -662,23 +673,23 @@
           (while (< i (length args)) (consume (next-arg))))
         (array/push positional-args arg))
       (let [sym (param-names arg)]
-        (cond
-          # TODO: nice error message for negative number
-          (nil? sym) (errorf "unknown parameter %s" arg)
-          (boolean? sym) (set soft-escaped? true)
-          (let [param (assert (named-params sym))
-                handler (param :handler)
-                ref (assert (refs sym))
-                {:update handle :type t :value value} handler
-                takes-value? (not= value :none)]
+        # TODO: nice error message for negative number
+        (when (nil? sym)
+          (errorf "unknown parameter %s" arg))
+        (def {:handler handler} (assert (named-params sym)))
+        (def {:update handle :type t :value value} handler)
+        (if (= value :soft-escape)
+          (set soft-escaped? true)
+          (do
+            (def takes-value? (not= value :none))
+            (def ref (assert (refs sym)))
             (defn consume [value]
               (set-ref ref (handle t arg (get-ref ref) value)))
             (try-with-context arg
               (case value
                 :none (consume nil)
                 :greedy (while (< i (length args)) (consume (next-arg)))
-                (consume (next-arg))))
-            )))))
+                (consume (next-arg)))))))))
   (assign-positional-args positional-args positional-params refs))
 
 (def- -foo=bar ~(* (<- (* "-" (some ,(^ "= ")))) "=" (<- (to -1))))
@@ -705,17 +716,20 @@
 
 (defn- assignment [spec]
   (def params (spec :params))
-  (def syms (keys params))
-  (def gensyms (struct ;(catseq [sym :in syms] [sym (gensym)])))
+  (def all-syms (seq [sym :keys params :when (not= (((params sym) :handler) :value) :soft-escape)] sym))
+  (def {true private-syms false public-syms} (group-by |(truthy? (((params $) :handler) :nameless)) all-syms))
+  (default private-syms [])
+  (default public-syms [])
+  (def gensyms (struct ;(catseq [sym :in all-syms] [sym (gensym)])))
 
   (def var-declarations
-    (seq [sym :in syms
+    (seq [sym :in all-syms
           :let [$sym (gensyms sym)
                 param (params sym)
                 handler (param :handler)]]
       ~(var ,$sym ,(handler :init))))
 
-  (def finalizations
+  (defn finalizations-of [syms]
     (seq [sym :in syms
           :let [$sym (gensyms sym)
                 param (params sym)
@@ -726,20 +740,21 @@
         (,(handler :finish) ,$sym))))
 
   (def refs
-    (catseq [sym :in syms
+    (catseq [sym :in all-syms
              :let [$sym (gensyms sym)]]
       [~',sym
         ~{:get (fn [] ,$sym)
           :set (fn [x] (set ,$sym x))}]))
 
-  ~(def [,;syms]
+  ~(def [,;public-syms]
     (try (do
       ,;var-declarations
       (,parse-args
         (,args)
         ,(bake-spec spec)
         (struct ,;refs))
-      [,;finalizations])
+      ,;(finalizations-of private-syms)
+      [,;(finalizations-of public-syms)])
     ([err fib]
       #(debug/stacktrace fib err "")
       (eprint err)

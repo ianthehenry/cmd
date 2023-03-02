@@ -76,14 +76,14 @@ hello
 
 Named parameters can have the following handlers:
 
-| Count     | `--param` | `--param value`  |
-| ----------|-----------|------------------|
-| 1         |           | `required` |
-| 0 or 1    | `flag`    | `optional` |
-| 0 or more | `counted` | `tuple`, `array`, `last?` |
-| 1 or more |           | `tuple+`, `array+`, `last` |
+| Count     | `--param`        | `--param value`            |
+| ----------|------------------|----------------------------|
+| 1         |                  | `required`                 |
+| 0 or 1    | `flag`, `effect` | `optional`                 |
+| 0 or more | `counted`        | `tuple`, `array`, `last?`  |
+| 1 or more |                  | `tuple+`, `array+`, `last` |
 
-Positional parameters have the same handlers, except that they cannot be `flag` or `counted`.
+Positional parameters can only have the values in the rightmost column.
 
 There is also a special handler called `(escape)`, described below.
 
@@ -187,6 +187,43 @@ default
 $ run --foo hi --foo bye
 bye
 ```
+
+# `(effect fn)`
+
+`(effect)` allows you to create a flag that, when supplied, calls an arbitrary function.
+
+```janet
+(cmd/script
+  --version (effect (fn []
+    (print "1.0")
+    (os/exit 0))))
+```
+```
+$ run --version
+1.0
+```
+
+You usually don't need to use the `(effect)` handler, because you can do something similar with a `(flag)`:
+
+```janet
+(cmd/script
+  --version (flag))
+(when version
+  (print "1.0")
+  (os/exit 0))
+```
+```
+$ run --version
+1.0
+```
+
+There are three differences:
+
+- `(effect)`s run even if there are other arguments that did not parse successfully (just as value parsers do).
+- `(effect)` handlers do not create bindings.
+- `(effect)` handlers run without any of the parsed command-line arguments in scope.
+
+`(effect)` mostly exists to support the default `--help` handler, and is a convenient way to specify other "subcommand-like" flags.
 
 # `(escape &opt type)`
 
@@ -351,11 +388,13 @@ Additionally, `cmd` will detect when your script is run with the Janet interpret
 
 You can bypass these normalizations by using `(cmd/parse)`, which will parse exactly the list of arguments you provide it.
 
-# Shortcomings
+# Missing features
 
-You cannot make "hidden" aliases. All aliases will appear in the help output.
+These are not fundamental limitations of this library, but merely unimplemented features that you might wish for. If you wish for them, let me know!
 
-You cannot specify separate docstrings for different enum or variant choices. All of the parameters will be grouped into a single entry in the help output, so the docstring should describe all of the choices.
+- You cannot make "hidden" aliases. All aliases will appear in the help output.
+- You cannot specify separate docstrings for different enum or variant choices. All of the parameters will be grouped into a single entry in the help output, so the docstring has to describe all of the choices.
+- There is no good way to re-use common flags between multiple subcommands.
 
 # TODO
 

@@ -126,7 +126,7 @@ Positional soft escape:
 
   $ use <<<'(cmd/script foo (escape))'
   $ run_err
-  ! script.janet:2:1: compile error: error: (macro) bad slot #1, expected string|symbol|keyword|buffer, got nil
+  ! script.janet:2:1: compile error: error: (macro) positional argument needs a valid symbol
   [1]
 
 Positional argument after positional hard escape:
@@ -134,4 +134,11 @@ Positional argument after positional hard escape:
   $ use <<<'(cmd/script foo (escape :string) bar :string)'
   $ run_err
   ! script.janet:2:1: compile error: error: (macro) only the final positional parameter can have an escape handler
+  [1]
+
+Positional effect:
+
+  $ use <<<'(cmd/script foo (effect nil))'
+  $ run_err
+  ! script.janet:2:1: compile error: error: (macro) positional argument needs a valid symbol
   [1]
