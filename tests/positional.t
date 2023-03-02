@@ -9,7 +9,7 @@ Positional parameters are required by default:
   > EOF
 
   $ run
-  ! missing required argument arg
+  ! not enough arguments
   [1]
   $ run foo
   foo
@@ -28,10 +28,10 @@ Multiple positional parameters:
   > EOF
 
   $ run
-  ! missing required argument first
+  ! not enough arguments
   [1]
   $ run foo
-  ! missing required argument second
+  ! not enough arguments
   [1]
   $ run foo bar
   foo

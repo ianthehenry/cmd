@@ -51,3 +51,16 @@ cmd/args:
   @["-x y"]
   $ run --foo=-xyz
   @["--foo" "-xyz"]
+
+cmd/print-help:
+
+  $ use <<EOF
+  > (cmd/print-help (cmd/spec --arg :string))
+  > EOF
+  $ run
+    script.janet
+  
+  === flags ===
+  
+    [-?], [-h], [--help] : Print this help text and exit
+    --arg                : undocumented

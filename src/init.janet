@@ -1,14 +1,7 @@
-(defn- has? [p x y]
-  (= (p x) y))
+(use ./util)
+(import ./help :prefix "" :export true)
 
-(defmacro- catseq [& args]
-  ~(mapcat |$ (seq ,;args)))
-
-(defn- ^ [chars]
-  ~(* (not (set ,chars)) 1))
-
-(defn- is-probably-interpreter? []
-  (= (last (string/split "/" (dyn *executable*))) "janet"))
+(def- *spec* (keyword (gensym)))
 
 # TODO: this needs a more clear name. what we're doing is
 # converting this into a format that can be interpreted.
@@ -34,14 +27,6 @@
     ,;(catseq [[key val] :pairs struct]
       [key ~',val])))
 
-(defmacro- pdb [& exprs]
-  ~(do
-    ,;(seq [expr :in exprs]
-        ~(eprintf "%s = %q" ,(string/format "%q" expr) ,expr))))
-
-(defn- assertf [pred str & args]
-  (assert pred (string/format str ;args)))
-
 (def- unset-sentinel (gensym))
 
 (def- unset ~',unset-sentinel)
@@ -62,14 +47,6 @@
     (string sym)
     (string/join names "/")))
 
-(defn- type+ [form]
-  (let [t (type form)]
-    (case t
-      :tuple (case (tuple/type form)
-        :brackets :tuple-brackets
-        :parens :tuple-parens)
-      t)))
-
 (defn- assert-unset [val] (assert (unset? val) "duplicate argument"))
 
 (defn- named-param-to-string [token]
@@ -82,10 +59,6 @@
     (case (type+ key)
       :tuple-brackets (map named-param-to-string key)
       [(named-param-to-string key)])))
-
-(defn- put-unique [table key value str & args]
-  (assertf (nil? (table key)) str ;args)
-  (put table key value))
 
 (defn- builtin-type-parser [token]
   (case token
@@ -143,17 +116,17 @@
         (assertf (not (empty? name-or-names)) "unexpected token %q" name-or-names)
         (def sym (gensym))
         (each name name-or-names
-          (put-unique alias-remap (string name) sym "duplicate alias %q" name))
+          (putf! alias-remap (string name) sym "duplicate alias %q" name))
         sym)
       (do
         (def name name-or-names)
-        (put-unique alias-remap (string name) name "duplicate alias %q" name)
+        (putf! alias-remap (string name) name "duplicate alias %q" name)
         name)))
     (def $type
       (if takes-value?
         (tagged-variant-parser name-or-names type-declaration)
         type-declaration))
-    (put-unique types-for-param key $type "BUG: duplicate key %q" key))
+    (putf! types-for-param key $type "BUG: duplicate key %q" key))
 
   (defn parse-string [types-for-param param-name value]
     (def key (alias-remap param-name))
@@ -387,10 +360,6 @@
 
   (def param-names (map string param-names))
 
-  #(each name param-names
-  #  (when (all |(= $ (chr "-")) name)
-  #    (errorf "illegal parameter name %s" name)))
-
   (table/setproto @{:names param-names :sym sym} state/param))
 
 # TODO: there should probably be an escape hatch to declare a dynamic docstring.
@@ -426,6 +395,25 @@
       (goto-state ctx state/pending))}
     state/pending))
 
+(defn- add-help [ctx]
+  # this could be cleaner... the whole ctx state parsing
+  # thing is a little janky
+  (def default-help-names ["--help" "-h" "-?"])
+  (def help-names (seq [name :in default-help-names :when (hasnt? (ctx :names) name)] name))
+  (unless (empty? help-names)
+    (def [_ handler] (handle/effect (defn []
+      (print-help (dyn *spec*))
+      (os/exit 0))))
+    (def help-param
+      {:names help-names
+       :doc "Print this help text and exit"
+       :handler handler})
+    (def help-sym (gensym))
+    (each name help-names
+      (put! (ctx :names) name help-sym))
+    (put! (ctx :named-params) help-sym help-param)
+    (put! (ctx :params) help-sym help-param)))
+
 # Returns an abstract syntax tree
 # that can be evaluated to produce
 # a spec
@@ -448,7 +436,7 @@
       :symbol (:on-param state ctx [token])
       (:on-other state ctx token)))
   (:on-eof (ctx :state) ctx)
-
+  (add-help ctx)
   ctx)
 
 (defn- bake-spec [ctx]
@@ -456,118 +444,6 @@
    :names (quote-values (ctx :names))
    :pos (quote-positional-params (ctx :positional-params))
    :doc (ctx :doc)})
-
-(defn- executable-name []
-  (if (is-probably-interpreter?)
-    (or (first (dyn *args*)) (dyn *executable*))
-      (dyn *executable*)))
-
-(defn- transpose-dict [dict]
-  (def result @{})
-  (eachp [k v] dict
-    (when (nil? (result v))
-      (put result v @[]))
-    (array/push (result v) k))
-  result)
-
-(defn- format-param [str handler]
-  (def value-handling (handler :value))
-  (case value-handling
-    :required str
-    :none (string "["str"]")
-    :optional (string "["str"]")
-    :variadic (string "["str"...]")
-    :greedy (string "["str"...]")
-    (errorf "BUG: unknown value handling %q" value-handling)))
-
-(defn- fold-map [f g init coll]
-  (reduce (fn [acc x] (f acc (g x))) init coll))
-
-(defn- sum-by [f coll]
-  (fold-map + f 0 coll))
-
-(defn- max-by [f coll]
-  (fold-map max f 0 coll))
-
-(defn- right-pad [str len]
-  (string str (string/repeat " " (max 0 (- len (length str))))))
-
-(defn- word-wrap-line [line len]
-  (def lines @[])
-  (var current-line @"")
-  (each word (string/split " " line)
-    (when (and (not (empty? current-line))
-             (>= (+ (length current-line) 1 (length word)) len))
-      (array/push lines current-line)
-      (set current-line @""))
-    (when (not (empty? current-line))
-      (buffer/push-string current-line " "))
-    (buffer/push-string current-line word))
-  (array/push lines current-line)
-  lines)
-
-(defn- word-wrap [str len]
-  (mapcat |(word-wrap-line $ len) (string/split "\n" str)))
-
-(defn- zip-lines [lefts rights f]
-  (def end (max (length lefts) (length rights)))
-  (def last-i (- end 1))
-  (for i 0 end
-    (f (= i 0) (= i last-i) (get lefts i "") (get rights i ""))))
-
-(defn print-help [spec]
-  (def {:named named-params
-        :names param-names
-        :pos positional-params
-        :doc doc-string} spec)
-
-  (when doc-string
-    (print doc-string)
-    (print))
-
-  (prin "  " (executable-name))
-  (each param positional-params
-    (prin " ")
-    (def name (or (param :doc) (string/ascii-upper (param :sym))))
-    (def value-handling ((param :handler) :value))
-    (prin (format-param name (param :handler))))
-  (print "\n")
-
-  (def params-and-names (sorted-by 0 (pairs (transpose-dict param-names))))
-  (def named-arg-entries
-    (seq [[sym names] :in params-and-names]
-      (def param (named-params sym))
-      (def names (sorted-by |(string/triml $ "-") names))
-      (def formatted-names (map |(format-param $ (param :handler)) names))
-      (def total-length (sum-by |(+ (length $) 3) formatted-names))
-      (def lines (if (<= total-length 30)
-        [(string/join formatted-names ", ")]
-        formatted-names))
-      [lines (or (param :doc) "undocumented")]))
-
-  (unless (empty? named-arg-entries)
-    (print "=== flags ===\n")
-
-    (def left-column-width (max-by |(max-by length (0 $)) named-arg-entries))
-    (each [lefts docstring] named-arg-entries
-      (def rights (word-wrap docstring (max 40 (- 80 left-column-width))))
-
-      (zip-lines lefts rights (fn [first? last? left right]
-        (def separator (if first? " : " (if (empty? right) "" "   ")))
-        (def pad-to (if (empty? right) 0 left-column-width))
-        (print "  " (right-pad left pad-to) separator right)
-        )))))
-
-# TODO: you could imagine a debug mode
-# where we preserve the stack frames here...
-# actually maybe we should always preserve
-# the stack frames, and just throw them away
-# when we're using one of the user-facing macros?
-# hmm. hmm hmm hmm.
-(defmacro- try-with-context [name & body]
-  ~(try (do ,;body)
-    ([err fib]
-      (errorf "%s: %s" ,name err))))
 
 (defn- set-ref [ref value]
   ((ref :set) value))
@@ -577,6 +453,7 @@
 # param: {sym handler}
 (defn- assign-positional-args [args params refs]
   (def num-args (length args))
+  (def errors @{})
 
   (var num-required-params 0)
   (var num-optional-params 0)
@@ -597,7 +474,7 @@
   (defn assign [{:handler handler :sym sym} arg]
     (def ref (assert (refs sym)))
     (def {:update handle :type t} handler)
-    (try-with-context sym
+    (try-with-context sym errors
       (set-ref ref (handle t nil (get-ref ref) arg))))
 
   (var arg-index 0)
@@ -609,9 +486,11 @@
   (each param params
     (case ((param :handler) :value)
       :required (do
-        (assertf (< arg-index num-args)
-          "missing required argument %s" (param :sym))
-        (assign param (take-arg)))
+        (if (< arg-index num-args)
+          (assign param (take-arg))
+          (do
+            (table/push errors "" "not enough arguments")
+            (break))))
       :optional
         (when (> num-optional-args 0)
           (assign param (take-arg))
@@ -624,7 +503,13 @@
       (assert false)))
 
   (when (< arg-index num-args)
-    (errorf "unexpected argument %s" (args arg-index))))
+    (table/push errors "" (string/format "unexpected argument %s" (args arg-index))))
+  errors)
+
+(defmacro- consume [name expr]
+  ~(let [{:update handle :type t} handler]
+    (try-with-context ,name errors
+      (set-ref ref (handle t (if (string? ,name) ,name) (get-ref ref) ,expr)))))
 
 # args: [string]
 # spec:
@@ -634,6 +519,7 @@
 # refs: sym -> ref
 (defn- parse-args [args {:named named-params :names param-names :pos positional-params} refs]
   (var i 0)
+  (def errors @{})
   (def positional-args @[])
   (var soft-escaped? false)
 
@@ -644,7 +530,7 @@
       (if (= ((last-param :handler) :value) :greedy) last-param)))
 
   (defn next-arg []
-    (when (= i (length args))
+    (if (= i (length args))
       (errorf "no value for argument"))
     (def arg (args i))
     (++ i)
@@ -663,34 +549,32 @@
   (while (< i (length args))
     (def arg (args i))
     (++ i)
-    (if (positional? arg)
-      (if (and positional-hard-escape-param (final-positional?))
-        (let [{:sym sym :handler {:update handle :type t}} positional-hard-escape-param
-               ref (assert (refs sym))]
-          (defn consume [value]
-            (set-ref ref (handle t nil (get-ref ref) value)))
-          (consume arg)
-          (while (< i (length args)) (consume (next-arg))))
-        (array/push positional-args arg))
-      (let [sym (param-names arg)]
-        # TODO: nice error message for negative number
-        (when (nil? sym)
-          (errorf "unknown parameter %s" arg))
-        (def {:handler handler} (assert (named-params sym)))
-        (def {:update handle :type t :value value} handler)
-        (if (= value :soft-escape)
-          (set soft-escaped? true)
-          (do
-            (def takes-value? (not= value :none))
-            (def ref (assert (refs sym)))
-            (defn consume [value]
-              (set-ref ref (handle t arg (get-ref ref) value)))
-            (try-with-context arg
-              (case value
-                :none (consume nil)
-                :greedy (while (< i (length args)) (consume (next-arg)))
-                (consume (next-arg)))))))))
-  (assign-positional-args positional-args positional-params refs))
+    (label continue
+      (if (positional? arg)
+        (if (and positional-hard-escape-param (final-positional?))
+          (let [{:sym sym :handler handler} positional-hard-escape-param
+                 ref (assert (refs sym))]
+            (consume sym arg)
+            (while (< i (length args)) (consume sym (next-arg))))
+          (array/push positional-args arg))
+        (let [sym (param-names arg)]
+          # TODO: nice error message for negative number
+          (when (nil? sym)
+            (table/push errors arg "unknown parameter")
+            (return continue))
+          (def {:handler handler} (assert (named-params sym)))
+          (def {:value value-handling} handler)
+          (if (= value-handling :soft-escape)
+            (set soft-escaped? true)
+            (do
+              (def takes-value? (not= value-handling :none))
+              (def ref (assert (refs sym)))
+              (case value-handling
+                :none (consume arg nil)
+                :greedy (while (< i (length args)) (consume arg (next-arg)))
+                (consume arg (next-arg)))))))))
+  (table/union errors (assign-positional-args positional-args positional-params refs))
+  errors)
 
 (def- -foo=bar ~(* (<- (* "-" (some ,(^ "= ")))) "=" (<- (to -1))))
 (def- -xyz ~(* "-" (group (some (<- ,(^ "- ")))) -1))
@@ -714,6 +598,13 @@
       (drop 1 (dyn *args*))
       (dyn *args*))))
 
+(defn- print-parse-errors [err-table]
+  (if-let [ctxless-errors (err-table "")]
+    (each err ctxless-errors
+      (eprint err))
+    (loop [[context errs] :pairs err-table :when (not= context "")]
+      (eprintf "%s: %s" context (first errs)))))
+
 (defn- assignment [spec]
   (def params (spec :params))
   (def all-syms (seq [sym :keys params :when (not= (((params sym) :handler) :value) :soft-escape)] sym))
@@ -729,15 +620,6 @@
                 handler (param :handler)]]
       ~(var ,$sym ,(handler :init))))
 
-  (defn finalizations-of [syms]
-    (seq [sym :in syms
-          :let [$sym (gensyms sym)
-                param (params sym)
-                name (display-name param)
-                handler (param :handler)]]
-      ~(as-macro
-        ,try-with-context ,name
-        (,(handler :finish) ,$sym))))
 
   (def refs
     (catseq [sym :in all-syms
@@ -746,20 +628,29 @@
         ~{:get (fn [] ,$sym)
           :set (fn [x] (set ,$sym x))}]))
 
-  ~(def [,;public-syms]
-    (try (do
-      ,;var-declarations
-      (,parse-args
-        (,args)
-        ,(bake-spec spec)
-        (struct ,;refs))
-      ,;(finalizations-of private-syms)
-      [,;(finalizations-of public-syms)])
-    ([err fib]
-      #(debug/stacktrace fib err "")
-      (eprint err)
-      (os/exit 1)
-      ))))
+  (with-syms [$spec $errors $results]
+    (defn finalizations-of [syms]
+      (seq [sym :in syms
+            :let [$sym (gensyms sym)
+                  param (params sym)
+                  name (display-name param)
+                  handler (param :handler)]]
+        ~(as-macro
+          ,try-with-context ,name ,$errors
+          (,(handler :finish) ,$sym))))
+    ~(def [,;public-syms]
+      (let [,$spec ,(bake-spec spec)] (with-dyns [,*spec* ,$spec]
+        ,;var-declarations
+        (def ,$errors (,parse-args
+          (,args)
+          ,$spec
+          (,struct ,;refs)))
+        ,;(finalizations-of private-syms)
+        (def ,$results [,;(finalizations-of public-syms)])
+        (unless (,empty? ,$errors)
+          (,print-parse-errors ,$errors)
+          (,os/exit 1))
+        ,$results)))))
 
 (defmacro simple [spec & body]
   (unless (= (type+ spec) :tuple-brackets)
@@ -784,13 +675,14 @@
     sym (handler :init)))
   (def refs (tabseq [sym :keys handlers]
     sym {:get (fn [] (scope sym)) :set (fn [x] (put scope sym x))}))
-  (parse-args args spec refs)
-  (def result @{})
-  (eachp [sym val] scope
-    (def handler (assert (handlers sym)))
-    (put result (keyword sym) ((handler :finish) val)))
-  result)
+  (with-dyns [*spec* spec]
+    (def errors (parse-args args spec refs))
+    (def result @{})
+    (eachp [sym val] scope
+      (def handler (assert (handlers sym)))
+      (try-with-context sym errors
+        (put result (keyword sym) ((handler :finish) val))))
+    result))
 
 (defmacro spec [& s]
   (bake-spec (parse-specification s)))
-

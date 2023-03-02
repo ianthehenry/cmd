@@ -34,6 +34,7 @@ Tables can be used as enums with values:
   ! --bar/--foo: missing required argument
   [1]
   $ run --foo
+  ! --bar/--foo: missing required argument
   ! --foo: no value for argument
   [1]
   $ run --foo hi

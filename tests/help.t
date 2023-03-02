@@ -3,20 +3,41 @@
 No docstring:
 
   $ use <<EOF
-  > (cmd/script --arg :string)
-  > (pp arg)
+  > (cmd/script)
   > EOF
-  $ run --arg hi
-  "hi"
+  $ run --help
+    script.janet
+  
+  === flags ===
+  
+    [-?], [-h], [--help] : Print this help text and exit
+
+Undocumented parameters:
+
+  $ use <<EOF
+  > (cmd/script --arg :string)
+  > EOF
+  $ run --help
+    script.janet
+  
+  === flags ===
+  
+    [-?], [-h], [--help] : Print this help text and exit
+    --arg                : undocumented
 
 Docstring:
 
   $ use <<EOF
-  > (cmd/script "doc" --arg :string)
-  > (pp arg)
+  > (cmd/script "This is the docstring")
   > EOF
-  $ run --arg hi
-  "hi"
+  $ run --help
+  This is the docstring
+  
+    script.janet
+  
+  === flags ===
+  
+    [-?], [-h], [--help] : Print this help text and exit
 
 Param docstring:
 
@@ -24,37 +45,44 @@ Param docstring:
   > (cmd/script "doc" --arg :string "arg doc")
   > (pp arg)
   > EOF
-  $ run --arg hi
-  "hi"
+  $ run --help
+  doc
+  
+    script.janet
+  
+  === flags ===
+  
+    [-?], [-h], [--help] : Print this help text and exit
+    --arg                : arg doc
 
-print-help:
+Complex help:
 
   $ use <<EOF
-  > (cmd/print-help (cmd/spec "This is the command description."
+  > (cmd/script "This is the command description."
   >   foo :string
   >   bar (optional :string)
   >   rest (tuple :string)
   >   baz (optional :string)
   >   --arg (last :string) "arg help"
   >   format {--text :plain --html :rich} "how to print results"
-  >   [arg-sym --alias -a --long-other-alias] :string "how to print results"
-  > ))
+  >   [arg-sym --alias -a --long-other-alias] :string "how to print results")
   > EOF
 
-  $ run
+  $ run --help
   This is the command description.
   
     script.janet FOO [BAR] [REST...] [BAZ]
   
   === flags ===
   
-    [--arg...]         : arg help
-    -a                 : how to print results
+    [-?], [-h], [--help] : Print this help text and exit
+    [--arg...]           : arg help
+    -a                   : how to print results
     --alias
     --long-other-alias
-    [--html], [--text] : how to print results
+    [--html], [--text]   : how to print results
 
-word wrap:
+Word wrap:
 
   $ use <<EOF
   > (cmd/print-help (cmd/spec "This is the command description."
@@ -69,16 +97,17 @@ word wrap:
   
   === flags ===
   
-    --arg : this is a very long docstring to demonstrate the way that word wrap
-            behaves in help text.
+    [-?], [-h], [--help] : Print this help text and exit
+    --arg                : this is a very long docstring to demonstrate the way that
+                           word wrap behaves in help text.
     
-            it can span multiple paragraphs. long words are not broken:
+                           it can span multiple paragraphs. long words are not broken:
     
-            xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+                           xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
     
-            and so on
+                           and so on
 
-word wrap of argument names:
+Word wrap of argument names:
 
   $ use <<EOF
   > (cmd/print-help (cmd/spec "This is the command description."
@@ -94,9 +123,10 @@ word wrap of argument names:
   
   === flags ===
   
-    -a    : this is a very long docstring to demonstrate the way that word wrap
-    --arg   behaves in help text
+    [-?], [-h], [--help] : Print this help text and exit
+    -a                   : this is a very long docstring to demonstrate the way that
+    --arg                  word wrap behaves in help text
     --bar
     --baz
     --qux
-    --b   : very little doc
+    --b                  : very little doc
