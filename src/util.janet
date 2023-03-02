@@ -30,8 +30,9 @@
 # when we're using one of the user-facing macros?
 # hmm. hmm hmm hmm.
 (defmacro try-with-context [name errors & body]
-  ~(try (do ,;body)
-    ([err fib] (,table/push ,errors ,name err))))
+  (with-syms [$err]
+    ~(try (do ,;body)
+      ([,$err _] (,table/push ,errors ,name ,$err)))))
 
 (defn table/union [left right]
   (eachp [key right-values] right
@@ -75,3 +76,9 @@
 
 (defn is-probably-interpreter? []
   (= (last (string/split "/" (dyn *executable*))) "janet"))
+
+(defn set-ref [ref value]
+  ((ref :set) value))
+
+(defn get-ref [ref]
+  ((ref :get)))

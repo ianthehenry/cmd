@@ -445,11 +445,6 @@
    :pos (quote-positional-params (ctx :positional-params))
    :doc (ctx :doc)})
 
-(defn- set-ref [ref value]
-  ((ref :set) value))
-(defn- get-ref [ref]
-  ((ref :get)))
-
 # param: {sym handler}
 (defn- assign-positional-args [args params refs]
   (def num-args (length args))
