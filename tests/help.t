@@ -176,3 +176,17 @@ Long description:
   === flags ===
   
     [-?], [-h], [--help] : Print this help text and exit
+
+Escapes:
+
+  $ use <<EOF
+  > (cmd/script -- (escape))
+  > EOF
+
+  $ run --help
+    script.janet
+  
+  === flags ===
+  
+    [-?], [-h], [--help] : Print this help text and exit
+    [--]                 : Treat all subsequent arguments as positional

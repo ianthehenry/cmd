@@ -57,6 +57,7 @@
     :optional (string "["str" "arg"]")
     :variadic (string "["str" "arg"]...")
     :greedy (string "["str" "arg"]...")
+    :soft-escape (string "["str"]")
     (errorf "BUG: unknown value handling %q" value-handling)))
 
 (defn- print-wrapped [str len]
@@ -90,6 +91,12 @@
   (eachp [name command] commands
     (printf "%s - %s" name (docstring-summary command))))
 
+(defn- default-description [param]
+  (case ((param :handler) :value)
+    :soft-escape "Treat all subsequent arguments as positional"
+    "undocumented"
+    ))
+
 (defn single [spec]
   (def {:named named-params
         :names param-names
@@ -122,7 +129,7 @@
       (def lines (if (<= total-length (/ desired-width 3))
         [(string/join formatted-names ", ")]
         formatted-names))
-      [lines (or (param :doc) "undocumented")]))
+      [lines (or (param :doc) (default-description param))]))
 
   (unless (empty? named-arg-entries)
     (print "=== flags ===\n")
