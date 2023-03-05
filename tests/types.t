@@ -43,6 +43,45 @@ Number:
   ! --arg: 123x is not a number
   [1]
 
+Int:
+
+  $ use <<EOF
+  > (cmd/def "doc"
+  >   --int :int
+  >   --non-neg :int+
+  >   --pos :int++)
+  > (pp [int non-neg pos])
+  > EOF
+  $ run --int 1 --non-neg 2 --pos 3
+  (1 2 3)
+  $ run --int -1 --non-neg 0 --pos 0
+  ! --pos: 0 must not positive
+  [1]
+  $ run --int -1 --non-neg 0 --pos 1
+  (-1 0 1)
+  $ run --int x --non-neg 0 --pos 1
+  ! --int: x is not a number
+  [1]
+
+File:
+
+  $ use <<EOF
+  > (cmd/def "doc"
+  >   --arg :file)
+  > (pp arg)
+  > EOF
+  $ run --help
+  doc
+  
+    script.janet
+  
+  === flags ===
+  
+    [-?], [-h], [--help] : Print this help text and exit
+    --arg FILE           : undocumented
+  $ run --arg filename
+  "filename"
+
 Custom renamed peg:
 
   $ use <<EOF

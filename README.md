@@ -390,7 +390,11 @@ $ run --html utf-8
 There are a few built-in argument parsers:
 
 - `:string`
+- `:file` - like `:string`, but prints differently in help output
 - `:number`
+- `:int` - any integer, positive or negative
+- `:int+` - non-negative integer (`>= 0`)
+- `:int++` - positive integer (`> 0`)
 
 You can also use any function as an argument. It should take a single string, and return the parsed value or `error` if it could not parse the argument.
 
@@ -457,9 +461,9 @@ These are not fundamental limitations of this library, but merely unimplemented 
 - You cannot make "hidden" aliases. All aliases will appear in the help output.
 - You cannot specify separate docstrings for different enum or variant choices. All of the parameters will be grouped into a single entry in the help output, so the docstring has to describe all of the choices.
 - There is no good way to re-use common flags across multiple subcommands.
+- There is no auto-generated shell completion file, even though we have sufficient information to create one.
 
 # TODO
 
-- [ ] more built-in type parsers
 - [ ] `help` subcommand
 - [ ] subcommand docstrings

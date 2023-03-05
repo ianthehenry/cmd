@@ -4,10 +4,32 @@
 
 (def *spec* (keyword (gensym)))
 
+(defn- parse-number [str]
+  (if-let [num (scan-number str)]
+    num
+    (errorf "%s is not a number" str)))
+(defn- parse-int [str]
+  (def num (parse-number str))
+  (unless (int? num)
+    (errorf "%s is not an integer" str))
+  num)
+
 (defn- builtin-type-parser [token]
   (case token
     :string ["STRING" |$]
-    :number ["NUM" (fn [str] (if-let [num (scan-number str)] num (errorf "%s is not a number" str)))]
+    :file ["FILE" |$]
+    :number ["NUM" parse-number]
+    :int ["INT" parse-int]
+    :int+ ["INT" (fn [str]
+      (def num (parse-int str))
+      (if (>= num 0)
+        num
+        (errorf "%s is negative" str)))]
+    :int++ ["INT" (fn [str]
+      (def num (parse-int str))
+      (if (> num 0)
+        num
+        (errorf "%s must not positive" str)))]
     (errorf "unknown type %q" token)))
 
 (defn- get-simple-type [parser]
