@@ -366,14 +366,17 @@
 (defn- add-help [ctx]
   # this could be cleaner... the whole ctx state parsing
   # thing is a little janky
-  (def default-help-names ["--help" "-h" "-?"])
+  (def public-help-name "--help")
+  (unless (nil? ((ctx :names) public-help-name))
+    (break))
+  (def default-help-names [public-help-name "-h" "-?"])
   (def help-names (seq [name :in default-help-names :when (hasnt? (ctx :names) name)] name))
   (unless (empty? help-names)
     (def [_ handler] (handle/effect (defn []
       (help/single (dyn *spec*))
       (os/exit 0))))
     (def help-param
-      {:names help-names
+      {:names [public-help-name]
        :doc "Print this help text and exit"
        :handler handler})
     (def help-sym (gensym))

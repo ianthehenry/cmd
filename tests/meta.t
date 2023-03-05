@@ -64,5 +64,5 @@ cmd/print-help:
   
   === flags ===
   
-    [-?], [-h], [--help] : Print this help text and exit
-    --arg STRING         : undocumented
+    [--help]     : Print this help text and exit
+    --arg STRING : undocumented

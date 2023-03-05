@@ -68,8 +68,9 @@
 # which we do not currently do.
 (defn- quote-named-params [params]
   ~(struct
-    ,;(catseq [[sym {:handler handler :doc doc}] :pairs params]
+    ,;(catseq [[sym {:handler handler :doc doc :names names}] :pairs params]
       [~',sym {:handler (quote-handler handler)
+               :names (tuple/brackets ;names)
                :doc doc}])))
 
 (defn- quote-positional-params [params]

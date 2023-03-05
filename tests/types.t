@@ -77,8 +77,8 @@ File:
   
   === flags ===
   
-    [-?], [-h], [--help] : Print this help text and exit
-    --arg FILE           : undocumented
+    [--help]   : Print this help text and exit
+    --arg FILE : undocumented
   $ run --arg filename
   "filename"
 
@@ -97,4 +97,4 @@ Custom renamed peg:
   
   === flags ===
   
-    [-?], [-h], [--help] : Print this help text and exit
+    [--help] : Print this help text and exit

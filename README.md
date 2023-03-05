@@ -428,7 +428,7 @@ $ greet --help
 
 === flags ===
 
-  [-?], [-h], [--help] : Print this help text and exit
+  [--help] : Print this help text and exit
 ```
 
 If you're supplying an argument name for a required parameter, you must use an explicit `(required)` clause: `--foo (required ["ARG" :string])`, not `--foo ["ARG" :string]`.

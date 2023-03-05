@@ -10,7 +10,7 @@ No docstring:
   
   === flags ===
   
-    [-?], [-h], [--help] : Print this help text and exit
+    [--help] : Print this help text and exit
 
 Undocumented parameters:
 
@@ -22,8 +22,25 @@ Undocumented parameters:
   
   === flags ===
   
-    [-?], [-h], [--help] : Print this help text and exit
-    --arg STRING         : undocumented
+    [--help]     : Print this help text and exit
+    --arg STRING : undocumented
+
+Hidden aliases:
+
+  $ run -h
+    script.janet
+  
+  === flags ===
+  
+    [--help]     : Print this help text and exit
+    --arg STRING : undocumented
+  $ run -?
+    script.janet
+  
+  === flags ===
+  
+    [--help]     : Print this help text and exit
+    --arg STRING : undocumented
 
 Docstring:
 
@@ -37,7 +54,7 @@ Docstring:
   
   === flags ===
   
-    [-?], [-h], [--help] : Print this help text and exit
+    [--help] : Print this help text and exit
 
 Param docstring:
 
@@ -52,8 +69,8 @@ Param docstring:
   
   === flags ===
   
-    [-?], [-h], [--help] : Print this help text and exit
-    --arg STRING         : arg doc
+    [--help]     : Print this help text and exit
+    --arg STRING : arg doc
 
 Complex help:
 
@@ -75,7 +92,7 @@ Complex help:
   
   === flags ===
   
-    [-?], [-h], [--help]      : Print this help text and exit
+    [--help]                  : Print this help text and exit
     --arg STRING...           : arg help
     -a STRING                 : how to print results
     --alias STRING
@@ -97,15 +114,15 @@ Word wrap:
   
   === flags ===
   
-    [-?], [-h], [--help] : Print this help text and exit
-    --arg STRING         : this is a very long docstring to demonstrate the way that
-                           word wrap behaves in help text.
+    [--help]     : Print this help text and exit
+    --arg STRING : this is a very long docstring to demonstrate the way that word wrap
+                   behaves in help text.
     
-                           it can span multiple paragraphs. long words are not broken:
+                   it can span multiple paragraphs. long words are not broken:
     
-                           xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+                   xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
     
-                           and so on
+                   and so on
 
 Word wrap of argument names:
 
@@ -123,13 +140,13 @@ Word wrap of argument names:
   
   === flags ===
   
-    [-?], [-h], [--help] : Print this help text and exit
-    -a STRING            : this is a very long docstring to demonstrate the way that
-    --arg STRING           word wrap behaves in help text
+    [--help]     : Print this help text and exit
+    -a STRING    : this is a very long docstring to demonstrate the way that word wrap
+    --arg STRING   behaves in help text
     --bar STRING
     --baz STRING
     --qux STRING
-    --b STRING           : very little doc
+    --b STRING   : very little doc
 
 Help for variants:
 
@@ -147,12 +164,12 @@ Help for variants:
   
   === flags ===
   
-    [-?], [-h], [--help] : Print this help text and exit
-    [-b HEY]             : something
+    [--help]       : Print this help text and exit
+    [-b HEY]       : something
     [--bar HEY]
     [--baz STRING]
-    [--foo]              : something else
-    [-a]                 : another
+    [--foo]        : something else
+    [-a]           : another
     [--arg]
     [-o]
     [--other]
@@ -175,7 +192,7 @@ Long description:
   
   === flags ===
   
-    [-?], [-h], [--help] : Print this help text and exit
+    [--help] : Print this help text and exit
 
 Escapes:
 
@@ -188,8 +205,8 @@ Escapes:
   
   === flags ===
   
-    [--]                 : Treat all subsequent arguments as positional
-    [-?], [-h], [--help] : Print this help text and exit
+    [--]     : Treat all subsequent arguments as positional
+    [--help] : Print this help text and exit
 
 Examples from the readme:
 
@@ -205,7 +222,7 @@ Examples from the readme:
   
   === flags ===
   
-    [-?], [-h], [--help] : Print this help text and exit
+    [--help] : Print this help text and exit
 
 Every handler:
 
@@ -234,7 +251,7 @@ Every handler:
   
     [--effect]                : undocumented
     [--soft-escape]           : Treat all subsequent arguments as positional
-    [-?], [-h], [--help]      : Print this help text and exit
+    [--help]                  : Print this help text and exit
     [--array STRING]...       : undocumented
     --array+ STRING...        : undocumented
     [--counted]               : undocumented

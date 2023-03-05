@@ -119,10 +119,9 @@
     (print-wrapped details desired-width)
     (print))
 
-  (def params-and-names (sorted-by 0 (pairs (transpose-dict param-names))))
   (def named-arg-entries
-    (seq [[sym names] :in params-and-names]
-      (def param (named-params sym))
+    (seq [[_ param] :in (sorted-by 0 (pairs named-params))]
+      (def {:names names} param)
       (def names (sorted-by |(string/triml $ "-") names))
       (def formatted-names (map |(format-param $ (param :handler)) names))
       # 2 is the length of the initial "  " and the separator ", "
