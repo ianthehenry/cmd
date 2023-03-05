@@ -452,7 +452,7 @@ By default, `cmd` performs the following normalizations:
 
 Additionally, `cmd` will detect when your script is run with the Janet interpreter (`janet foo.janet --flag`), and will automatically ignore the `foo.janet` argument.
 
-You can bypass these normalizations by using `(cmd/parse)`, which will parse exactly the list of arguments you provide it.
+You can bypass these normalizations by using `cmd/parse` or `cmd/run`, which will parse exactly the list of arguments you provide them.
 
 # Missing features
 
