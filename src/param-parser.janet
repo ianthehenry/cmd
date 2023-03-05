@@ -25,23 +25,17 @@
       :tuple-brackets (map named-param-to-string key)
       [(named-param-to-string key)])))
 
-(defn- builtin-type-parser [token]
-  (case token
-    :string |$
-    :number (error "unimplemented")
-    (errorf "unknown type %q" token)))
-
 (defn- peg-parser [peg]
   (def peg (peg/compile peg))
-  (fn [str]
-    (def matches (peg/match peg str))
-    (if (and (not (nil? matches)) (has? length matches 1))
-      (first matches)
-      (errorf "unable to parse %q" str))))
+  ["_"
+   (fn [str]
+     (def matches (peg/match peg str))
+     (if (and (not (nil? matches)) (has? length matches 1))
+       (first matches)
+       (errorf "unable to parse %q" str)))])
 
 (defn- parse-simple-type-declaration [type-declaration]
   (cond
-    (keyword? type-declaration) (builtin-type-parser type-declaration)
     (and (has? type+ type-declaration :tuple-parens)
       (= (first type-declaration) 'quasiquote)) ~(,peg-parser ,type-declaration)
     type-declaration))
@@ -93,19 +87,19 @@
         type-declaration))
     (putf! types-for-param key $type "BUG: duplicate key %q" key))
 
-  (defn parse-string [types-for-param param-name value]
+  (defn parse-string [[alias-remap types-for-param] param-name value]
     (def key (alias-remap param-name))
     (def t (types-for-param key))
     (if takes-value?
       (do
         (assert (string? value))
-        (def [tag of-string] t)
+        (def [tag [_ of-string]] t)
         [tag (of-string value)])
       (do (assert (nil? value)) t)))
 
   [additional-names
    takes-value?
-   (quote-keys types-for-param)
+   ~[,(quote-keys-and-values alias-remap) ,(quote-keys types-for-param)]
    parse-string])
 
 # a type declaration can be an arbitrary expression. returns
@@ -119,7 +113,7 @@
     [[]
      true
      (parse-simple-type-declaration type-declaration)
-     (fn [parse-string name value] (parse-string value))]))
+     (fn [[_ parse-string] name value] (parse-string value))]))
 
 (defn- handle/required [type-declaration]
   (def [additional-names takes-value? $type parse-string] (get-parser type-declaration))
@@ -170,7 +164,7 @@
    :value :none
    :type f
    :symless true
-   :update (fn [t _ old _] (assert-unset old) t)
+   :update (fn [[_ t] _ old _] (assert-unset old) t)
    :finish (fn [val] (if (unset? val) nil (val)))}])
 
 (defn- handle/counted []
@@ -202,8 +196,7 @@
     (do
       (def [additional-names handler] (handle/listed-tuple type-declaration))
       [additional-names (struct/with-proto handler
-        :value (rewrite-value handler :greedy)
-        :finish tuple/slice)])))
+        :value (rewrite-value handler :greedy))])))
 
 # returns a tuple of [additional-names handler]
 (defn- parse-form-handler [form]

@@ -82,3 +82,18 @@
 
 (defn get-ref [ref]
   ((ref :get)))
+
+(defn quote-keys [dict]
+  ~(struct
+    ,;(catseq [[key val] :pairs dict]
+      [~',key val])))
+
+(defn quote-values [struct]
+  ~(struct
+    ,;(catseq [[key val] :pairs struct]
+      [key ~',val])))
+
+(defn quote-keys-and-values [struct]
+  ~(struct
+    ,;(catseq [[key val] :pairs struct]
+      [~',key ~',val])))

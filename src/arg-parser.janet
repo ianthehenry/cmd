@@ -60,6 +60,7 @@
     (table/push errors "" (string/format "unexpected argument %s" (args arg-index))))
   errors)
 
+# this is the absolute worst kind of macro
 (defmacro- consume [name expr]
   ~(let [{:update handle :type t} handler]
     (try-with-context ,name errors
@@ -67,8 +68,8 @@
 
 # args: [string]
 # spec:
-#   named-params: sym -> param
-#   param-names: string -> sym
+#   named: sym -> param
+#   names: string -> sym
 #   pos: [param]
 # refs: sym -> ref
 (defn- parse-args [args {:named named-params :names param-names :pos positional-params} refs]
@@ -77,8 +78,6 @@
   (def positional-args @[])
   (var soft-escaped? false)
 
-  # TODO: we need to set an invariant that there can be no
-  # positional arguments declared after a hard positional escape
   (def positional-hard-escape-param
     (if-let [last-param (last positional-params)]
       (if (= ((last-param :handler) :value) :greedy) last-param)))
@@ -103,30 +102,27 @@
   (while (< i (length args))
     (def arg (args i))
     (++ i)
-    (label continue
-      (if (positional? arg)
-        (if (and positional-hard-escape-param (final-positional?))
-          (let [{:sym sym :handler handler} positional-hard-escape-param
-                 ref (assert (refs sym))]
-            (consume sym arg)
-            (while (< i (length args)) (consume sym (next-arg))))
-          (array/push positional-args arg))
-        (let [sym (param-names arg)]
-          # TODO: nice error message for negative number
-          (when (nil? sym)
-            (table/push errors arg "unknown parameter")
-            (return continue))
-          (def {:handler handler} (assert (named-params sym)))
-          (def {:value value-handling} handler)
-          (if (= value-handling :soft-escape)
-            (set soft-escaped? true)
-            (do
-              (def takes-value? (not= value-handling :none))
-              (def ref (assert (refs sym)))
-              (case value-handling
-                :none (consume arg nil)
-                :greedy (while (< i (length args)) (consume arg (next-arg)))
-                (consume arg (next-arg)))))))))
+    (if (positional? arg)
+      (if (and positional-hard-escape-param (final-positional?))
+        (let [{:sym sym :handler handler} positional-hard-escape-param
+               ref (assert (refs sym))]
+          (consume sym arg)
+          (while (< i (length args)) (consume sym (next-arg))))
+        (array/push positional-args arg))
+      (let [sym (param-names arg)]
+        # TODO: nice error message for negative number
+        (if (nil? sym)
+          (table/push errors arg "unknown parameter")
+          (let [{:handler handler} (assert (named-params sym))
+                {:value value-handling} handler]
+            (if (= value-handling :soft-escape)
+              (set soft-escaped? true)
+              (let [takes-value? (not= value-handling :none)
+                    ref (assert (refs sym))]
+                (case value-handling
+                  :none (consume arg nil)
+                  :greedy (while (< i (length args)) (consume arg (next-arg)))
+                  (consume arg (next-arg))))))))))
   (table/union errors (assign-positional-args positional-args positional-params refs))
   errors)
 

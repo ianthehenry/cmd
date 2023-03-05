@@ -33,12 +33,25 @@
 
 (defn- format-param [str handler]
   (def value-handling (handler :value))
+
+  # for a simple type:
+
+  (def arg (if (= value-handling :none)
+    nil
+    (let [[first second] (handler :type)]
+      (if (string? first)
+        first
+        (let [sym (first str)
+              # [tag [arg-name type]]
+              [_ [arg _]] (second sym)]
+          arg)))))
+
   (case value-handling
-    :required str
+    :required (string str " " arg)
     :none (string "["str"]")
-    :optional (string "["str"]")
-    :variadic (string "["str"...]")
-    :greedy (string "["str"...]")
+    :optional (string "["str" "arg"]")
+    :variadic (string "["str" "arg"]...")
+    :greedy (string "["str" "arg"]...")
     (errorf "BUG: unknown value handling %q" value-handling)))
 
 (defn print-help [spec]
@@ -54,8 +67,9 @@
   (prin "  " (executable-name))
   (each param positional-params
     (prin " ")
+    # TODO: should we show the type annotation instead, and reserve
+    # the doc for elsewhere?
     (def name (or (param :doc) (string/ascii-upper (param :sym))))
-    (def value-handling ((param :handler) :value))
     (prin (format-param name (param :handler))))
   (print "\n")
 
@@ -65,7 +79,8 @@
       (def param (named-params sym))
       (def names (sorted-by |(string/triml $ "-") names))
       (def formatted-names (map |(format-param $ (param :handler)) names))
-      (def total-length (sum-by |(+ (length $) 3) formatted-names))
+      # 2 is the length of the initial "  " and the separator ", "
+      (def total-length (sum-by |(+ (length $) 2) formatted-names))
       (def lines (if (<= total-length 30)
         [(string/join formatted-names ", ")]
         formatted-names))

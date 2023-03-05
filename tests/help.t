@@ -23,7 +23,7 @@ Undocumented parameters:
   === flags ===
   
     [-?], [-h], [--help] : Print this help text and exit
-    --arg                : undocumented
+    --arg STRING         : undocumented
 
 Docstring:
 
@@ -53,7 +53,7 @@ Param docstring:
   === flags ===
   
     [-?], [-h], [--help] : Print this help text and exit
-    --arg                : arg doc
+    --arg STRING         : arg doc
 
 Complex help:
 
@@ -71,16 +71,16 @@ Complex help:
   $ run --help
   This is the command description.
   
-    script.janet FOO [BAR] [REST...] [BAZ]
+    script.janet FOO STRING [BAR STRING] [REST STRING]... [BAZ STRING]
   
   === flags ===
   
-    [-?], [-h], [--help] : Print this help text and exit
-    [--arg...]           : arg help
-    -a                   : how to print results
-    --alias
-    --long-other-alias
-    [--html], [--text]   : how to print results
+    [-?], [-h], [--help]      : Print this help text and exit
+    [--arg STRING]...         : arg help
+    -a STRING                 : how to print results
+    --alias STRING
+    --long-other-alias STRING
+    [--html], [--text]        : how to print results
 
 Word wrap:
 
@@ -98,7 +98,7 @@ Word wrap:
   === flags ===
   
     [-?], [-h], [--help] : Print this help text and exit
-    --arg                : this is a very long docstring to demonstrate the way that
+    --arg STRING         : this is a very long docstring to demonstrate the way that
                            word wrap behaves in help text.
     
                            it can span multiple paragraphs. long words are not broken:
@@ -124,9 +124,35 @@ Word wrap of argument names:
   === flags ===
   
     [-?], [-h], [--help] : Print this help text and exit
-    -a                   : this is a very long docstring to demonstrate the way that
-    --arg                  word wrap behaves in help text
-    --bar
-    --baz
-    --qux
-    --b                  : very little doc
+    -a STRING            : this is a very long docstring to demonstrate the way that
+    --arg STRING           word wrap behaves in help text
+    --bar STRING
+    --baz STRING
+    --qux STRING
+    --b STRING           : very little doc
+
+Help for variants:
+
+  $ use <<EOF
+  > (cmd/script "This is the command description."
+  >   foo (optional @{[--bar -b] [:bar ["HEY" :string]] --baz :string}) "something"
+  >   other {--foo 1} "something else"
+  >   something {[--arg -a] 1 [--other -o] 2} "another")
+  > EOF
+
+  $ run --help
+  This is the command description.
+  
+    script.janet
+  
+  === flags ===
+  
+    [-?], [-h], [--help] : Print this help text and exit
+    [-b HEY]             : something
+    [--bar HEY]
+    [--baz STRING]
+    [--foo]              : something else
+    [-a]                 : another
+    [--arg]
+    [-o]
+    [--other]
