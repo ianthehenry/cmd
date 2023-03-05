@@ -47,6 +47,18 @@
 (defmacro defgroup [name & s]
   ~(def ,name (as-macro ,group ,;s)))
 
+(defmacro main [command]
+  ~(defn main [&] (,run ,command (,args))))
+
+(defn peg [peg-dsl]
+  (def peg (peg/compile peg-dsl))
+  ["_"
+   (fn [str]
+     (def matches (peg/match peg str))
+     (if (and (not (nil? matches)) (has? length matches 1))
+       (first matches)
+       (errorf "unable to parse %q" str)))])
+
 (defmacro fn [& args]
   (def [spec body]
     (case (length args)

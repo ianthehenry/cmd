@@ -188,5 +188,5 @@ Escapes:
   
   === flags ===
   
-    [-?], [-h], [--help] : Print this help text and exit
     [--]                 : Treat all subsequent arguments as positional
+    [-?], [-h], [--help] : Print this help text and exit

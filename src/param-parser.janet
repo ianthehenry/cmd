@@ -25,21 +25,6 @@
       :tuple-brackets (map named-param-to-string key)
       [(named-param-to-string key)])))
 
-(defn- peg-parser [peg]
-  (def peg (peg/compile peg))
-  ["_"
-   (fn [str]
-     (def matches (peg/match peg str))
-     (if (and (not (nil? matches)) (has? length matches 1))
-       (first matches)
-       (errorf "unable to parse %q" str)))])
-
-(defn- parse-simple-type-declaration [type-declaration]
-  (cond
-    (and (has? type+ type-declaration :tuple-parens)
-      (= (first type-declaration) 'quasiquote)) ~(,peg-parser ,type-declaration)
-    type-declaration))
-
 (defn- infer-tag [name-or-names]
   (def name
     (if (tuple? name-or-names)
@@ -54,8 +39,8 @@
         (assertf (has? length form 2)
           "expected tuple of two elements, got %q" form)
         (def [$tag $type] form)
-        ~[,$tag ,(parse-simple-type-declaration $type)])
-      ~[,(infer-tag name-or-names) ,(parse-simple-type-declaration form)]))
+        ~[,$tag ,$type])
+      ~[,(infer-tag name-or-names) ,form]))
   $tag-and-parser)
 
 (defn- get-dictionary-parser [dict]
@@ -112,7 +97,7 @@
     (get-dictionary-parser type-declaration)
     [[]
      true
-     (parse-simple-type-declaration type-declaration)
+     type-declaration
      (fn [[_ parse-string] name value] (parse-string value))]))
 
 (defn- handle/required [type-declaration]

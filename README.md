@@ -1,6 +1,6 @@
 # `cmd` is a work in progress. It's not ready for you to use it yet!
 
-`cmd` is a Janet library for parsing command-line arguments.
+`cmd` is a Janet library for parsing command-line arguments and auto-generating help text.
 
 ```janet
 (import cmd)
@@ -8,7 +8,7 @@
 (cmd/def "Print a friendly greeting"
   --greeting (optional :string "Hello")
     "What to say. Defaults to hello."
-  name :string)
+  name ["NAME" :string])
 
 (printf "%s, %s!" greeting name)
 ```
@@ -29,22 +29,31 @@ Print a friendly greeting
 === flags ===
 
   [--greeting STRING] : What to say. Defaults to hello.
+  [--help]            : Print this help text and exit
 ```
 
 # Usage
 
-- `(cmd/def DSL)` parses `(dyn :args)` immediately and puts the results in the current scope -- just like `def`.
-- `(cmd/fn "docstring" [DSL] & body)` returns a simple command.
-- `(cmd/group "docstring" & name command)` returns a command made up of subcommands created from `cmd/fn` or `cmd/group`.
-- `(cmd/defn name "docstring" [DSL] & body)` declares a function that ignores its arguments and then parses `(cmd/args)`. You can use this to declare a `main` function.
-- `(cmd/defgroup name "docstring" & name command)` declares a function that ignores its arguments and then parses `(cmd/args)`. You can use this to declare a `main` function.
+You will mostly use the following macros:
 
-Additionally, you can use:
+- `(cmd/def DSL)` parses `(cmd/args)` immediately and puts the results in the current scope. You can use this to quickly parse arguments in scripts.
+- `(cmd/fn "docstring" [DSL] & body)` returns a simple command, which you can use in a `cmd/group`.
+- `(cmd/group "docstring" & name command)` returns a command made up of subcommands created from `cmd/fn` or `cmd/group`.
+- `(cmd/main command)` declares a function called `main` that ignores its arguments and then calls `(cmd/run command (cmd/args))`.
+
+There are also some convenient helpers:
+
+- `(cmd/peg ~(some :d))` returns a function that parses the given PEG or raises. You can use this to easily create custom type parsers.
+- `(cmd/defn name "docstring" [DSL] & body)` gives a name to a simple command.
+- `(cmd/defgroup name "docstring" & name command)` gives a name to a command group.
+
+However, you can integrate `cmd` into your project more by using some lower level helpers:
 
 - `(cmd/spec DSL)` returns a spec as a first-class value.
 - `(cmd/parse spec args)` parses the provided arguments according to the spec, and returns a table of *keywords*, not symbols.
-- `(cmd/run command args)` calls a command returned by `(cmd/fn)` or `(cmd/group)`.
-- `(cmd/args)` returns `(dyn *args*)`, normalized according to the rules below.
+- `(cmd/run command args)` runs a command returned by `(cmd/fn)` or `(cmd/group)` with the provided arguments.
+- `(cmd/print-help command)` prints the help for a command.
+- `(cmd/args)` returns `(dyn *args*)`, normalized according to the rules described below.
 
 There is currently no way to produce a command-line spec except by using the DSL, so it's difficult to construct one dynamically.
 
@@ -190,7 +199,7 @@ $ run --foo hi --foo bye
 bye
 ```
 
-# `(effect fn)`
+## `(effect fn)`
 
 `(effect)` allows you to create a flag that, when supplied, calls an arbitrary function.
 
@@ -227,7 +236,7 @@ There are three differences:
 
 `(effect)` mostly exists to support the default `--help` handler, and is a convenient way to specify other "subcommand-like" flags.
 
-# `(escape &opt type)`
+## `(escape &opt type)`
 
 There are two kinds of escape: hard escape and soft escape.
 
@@ -374,6 +383,36 @@ $ run --text ascii
 
 $ run --html utf-8
 (3 "utf-8")
+```
+
+# Help
+
+`cmd` will automatically generate a `--help` flag.
+
+The docstring can be multiple lines long. In that case, only the first line will appear in a command group description.
+
+You can add names to arguments by replacing a type annotation with a tuple of `["ARG-NAME" :string]`. For example:
+
+```janet
+(def host-and-port ["HOST:PORT" (cmd/peg ~(group (* (<- (to ":")) ":" (number :d+))))])
+(cmd/def address (required host-and-port))
+(def [host port] address)
+(print "host = " host ", port = " port)
+```
+```
+$ serve --help
+  serve HOST:PORT
+
+=== flags ===
+
+  [--help] : Print this help text and exit
+```
+
+If you're writing a variant, the help string must come after the tag:
+
+```janet
+(cmd/def 
+  variant @{--foo [:tag ["ARG" :string]]})
 ```
 
 # Argument normalization

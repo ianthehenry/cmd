@@ -4,15 +4,17 @@ Cmd shouldn't export too many symbols:
 
   $ use <<<'(loop [[sym val] :pairs (curenv) :when (symbol? sym)] (pp sym))'
   $ run
-  cmd/parse
   cmd/defgroup
+  cmd/group
+  cmd/def
+  cmd/fn
+  cmd/parse
+  cmd/peg
   cmd/defn
   cmd/print-help
+  cmd/main
   cmd/spec
-  cmd/def
   cmd/args
-  cmd/group
-  cmd/fn
   cmd/run
 
 cmd/spec and cmd/parse:
