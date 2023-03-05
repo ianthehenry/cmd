@@ -50,9 +50,9 @@
 (defmacro main [command]
   ~(defn main [&] (,run ,command (,args))))
 
-(defn peg [peg-dsl]
+(defn peg [name peg-dsl]
   (def peg (peg/compile peg-dsl))
-  ["_"
+  [name
    (fn [str]
      (def matches (peg/match peg str))
      (if (and (not (nil? matches)) (has? length matches 1))

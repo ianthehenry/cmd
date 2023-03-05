@@ -5,7 +5,7 @@ cmd/peg:
   $ use <<EOF
   > (def a "a")
   > (cmd/def "doc"
-  >   --arg (required (cmd/peg ~(<- (* ,a "b")))))
+  >   --arg (required (cmd/peg "ab" ~(<- (* ,a "b")))))
   > (pp arg)
   > EOF
 
@@ -46,7 +46,7 @@ Number:
 Custom renamed peg:
 
   $ use <<EOF
-  > (def host-and-port ["HOST:PORT" (cmd/peg ~(group (* (<- (to ":")) ":" (number :d+))))])
+  > (def host-and-port (cmd/peg "HOST:PORT" ~(group (* (<- (to ":")) ":" (number :d+)))))
   > (cmd/def address (required host-and-port))
   > (def [host port] address)
   > (print "host = " host ", port = " port)

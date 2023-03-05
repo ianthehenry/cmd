@@ -190,3 +190,19 @@ Escapes:
   
     [--]                 : Treat all subsequent arguments as positional
     [-?], [-h], [--help] : Print this help text and exit
+
+Examples from the readme:
+
+  $ use <<EOF
+  > (def name ["NAME" :string])
+  > (cmd/def 
+  >   name (required name))
+  > (printf "Hello, %s!" name)
+  > EOF
+
+  $ run --help
+    script.janet NAME
+  
+  === flags ===
+  
+    [-?], [-h], [--help] : Print this help text and exit

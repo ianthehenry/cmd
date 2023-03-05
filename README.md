@@ -43,7 +43,7 @@ You will mostly use the following macros:
 
 There are also some convenience helpers:
 
-- `(cmd/peg ~(<- (some :d)))` returns a function that takes a string and parses it according to the given PEG, raising if the PEG fails to parse or if it does not produce exactly one capture. You can use this to easily create custom types.
+- `(cmd/peg name ~(<- (some :d)))` returns an argument parser that uses the provided PEG, raising if the PEG fails to parse or if it does not produce exactly one capture. You can use this to easily create custom types.
 - `(cmd/defn name "docstring" [DSL] & body)` gives a name to a simple command.
 - `(cmd/defgroup name "docstring" & name command)` gives a name to a command group.
 
@@ -385,30 +385,51 @@ $ run --html utf-8
 (3 "utf-8")
 ```
 
+# Argument types
+
+There are a few built-in argument parsers:
+
+- `:string`
+- `:number`
+
+You can also use any function as an argument. It should take a single string, and return the parsed value or `error` if it could not parse the argument.
+
+There is also a helper, `cmd/peg`, which you can use to create ad-hoc argument parsers:
+
+```janet
+(def host-and-port (cmd/peg "HOST:PORT" ~(group (* (<- (to ":")) ":" (number :d+)))))
+(cmd/def address (required host-and-port))
+(def [host port] address)
+(print "host = " host ", port = " port)
+```
+
+
 # Help
 
 `cmd` will automatically generate a `--help` flag.
 
 The docstring can be multiple lines long. In that case, only the first line will appear in a command group description.
 
-You can add names to arguments by replacing a type annotation with a tuple of `["ARG-NAME" :string]`. For example:
+You give useful names to arguments by replacing argument types with a tuple of `["ARG-NAME" type]`. For example:
 
 ```janet
-(def host-and-port ["HOST:PORT" (cmd/peg ~(group (* (<- (to ":")) ":" (number :d+))))])
-(cmd/def address (required host-and-port))
-(def [host port] address)
-(print "host = " host ", port = " port)
+(def name ["NAME" :string])
+(cmd/def 
+  name (required name))
+(printf "Hello, %s!" name)
 ```
 ```
-$ serve --help
-  serve HOST:PORT
+$ greet --help
+  script.janet NAME
 
 === flags ===
 
-  [--help] : Print this help text and exit
+  [-?], [-h], [--help] : Print this help text and exit
 ```
 
-If you're writing a variant, the help string must come after the tag:
+If you're supplying an argument name for a required parameter, you must use an explicit `(required)` clause: `--foo (required ["ARG" :string])`, not `--foo ["ARG" :string]`.
+
+If you're writing a variant, the argument name must come after the tag:
 
 ```janet
 (cmd/def 
