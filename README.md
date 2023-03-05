@@ -394,7 +394,7 @@ These are not fundamental limitations of this library, but merely unimplemented 
 
 - You cannot make "hidden" aliases. All aliases will appear in the help output.
 - You cannot specify separate docstrings for different enum or variant choices. All of the parameters will be grouped into a single entry in the help output, so the docstring has to describe all of the choices.
-- There is no good way to re-use common flags between multiple subcommands.
+- There is no good way to re-use common flags across multiple subcommands.
 
 # TODO
 

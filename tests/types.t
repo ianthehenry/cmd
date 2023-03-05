@@ -29,3 +29,16 @@ Arbitrary functions:
   > EOF
   $ run --arg hello
   "HELLO"
+
+Number:
+
+  $ use <<EOF
+  > (cmd/script "doc"
+  >   --arg :number)
+  > (pp arg)
+  > EOF
+  $ run --arg 123
+  123
+  $ run --arg 123x
+  ! --arg: 123x is not a number
+  [1]
