@@ -2,7 +2,7 @@
 
 (use ./util)
 (use ./bridge)
-(use ./help)
+(import ./help)
 
 (defn- named-param? [token]
   (and
@@ -360,7 +360,7 @@
   (def help-names (seq [name :in default-help-names :when (hasnt? (ctx :names) name)] name))
   (unless (empty? help-names)
     (def [_ handler] (handle/effect (defn []
-      (print-help (dyn *spec*))
+      (help/single (dyn *spec*))
       (os/exit 0))))
     (def help-param
       {:names help-names

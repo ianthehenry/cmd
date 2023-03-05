@@ -398,7 +398,6 @@ These are not fundamental limitations of this library, but merely unimplemented 
 
 # TODO
 
-- [ ] implement `cmd/group`
 - [ ] more built-in type parsers
 - [ ] `tuple+` and `array+`
 - [ ] put brackets around `tuple` but not `tuple+` args in help output

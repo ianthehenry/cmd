@@ -60,9 +60,9 @@ Complex help:
   $ use <<EOF
   > (cmd/script "This is the command description."
   >   foo :string
-  >   bar (optional :string)
+  >   bar (optional ["BAR" :string])
   >   rest (tuple :string)
-  >   baz (optional :string)
+  >   baz (optional ["BAZ" :string])
   >   --arg (last :string) "arg help"
   >   format {--text :plain --html :rich} "how to print results"
   >   [arg-sym --alias -a --long-other-alias] :string "how to print results")
@@ -71,7 +71,7 @@ Complex help:
   $ run --help
   This is the command description.
   
-    script.janet FOO STRING [BAR STRING] [REST STRING]... [BAZ STRING]
+    script.janet STRING BAR STRING BAZ
   
   === flags ===
   
@@ -156,3 +156,23 @@ Help for variants:
     [--arg]
     [-o]
     [--other]
+
+Long description:
+
+  $ use <<EOF
+  > (cmd/script "This is the command summary.\n\nThis is the detailed description.\n\nIt can be multiple paragraphs long, and it does wrap properly. It looks good, even. Look at that! It looks great." foo :string)
+  > EOF
+
+  $ run --help
+  This is the command summary.
+  
+    script.janet STRING
+  
+  This is the detailed description.
+  
+  It can be multiple paragraphs long, and it does wrap properly. It looks good,
+  even. Look at that! It looks great.
+  
+  === flags ===
+  
+    [-?], [-h], [--help] : Print this help text and exit

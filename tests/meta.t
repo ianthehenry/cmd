@@ -2,18 +2,18 @@
 
 Cmd shouldn't export too many symbols:
 
-  $ use <<<'(eachp [sym val] (curenv) (pp sym))'
+  $ use <<<'(loop [[sym val] :pairs (curenv) :when (symbol? sym)] (pp sym))'
   $ run
   cmd/parse
+  cmd/defgroup
+  cmd/defn
   cmd/print-help
-  :macro-lints
-  :args
-  cmd/simple
   cmd/spec
-  :current-file
-  :source
   cmd/args
+  cmd/group
+  cmd/fn
   cmd/script
+  cmd/run
 
 cmd/spec and cmd/parse:
 

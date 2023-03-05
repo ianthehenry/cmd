@@ -1,5 +1,10 @@
 (use ./util)
 
+# janet has no built-in way to detect the terminal width.
+# might be nice to allow the user to set a dynamic variable,
+# though...
+(def- desired-width 80)
+
 (defn- right-pad [str len]
   (string str (string/repeat " " (max 0 (- len (length str))))))
 
@@ -31,14 +36,11 @@
     (or (first (dyn *args*)) (dyn *executable*))
       (dyn *executable*)))
 
-(defn- format-param [str handler]
-  (def value-handling (handler :value))
-
-  # for a simple type:
-
-  (def arg (if (= value-handling :none)
+(defn- format-arg-string [handler &opt str]
+  (def {:value value-handling :type type} handler)
+  (if (= value-handling :none)
     nil
-    (let [[first second] (handler :type)]
+    (let [[first second] type]
       (if (string? first)
         first
         (let [sym (first str)
@@ -46,6 +48,9 @@
               [_ [arg _]] (second sym)]
           arg)))))
 
+(defn- format-param [str handler]
+  (def value-handling (handler :value))
+  (def arg (format-arg-string handler str))
   (case value-handling
     :required (string str " " arg)
     :none (string "["str"]")
@@ -54,24 +59,57 @@
     :greedy (string "["str" "arg"]...")
     (errorf "BUG: unknown value handling %q" value-handling)))
 
-(defn print-help [spec]
+(defn- print-wrapped [str len]
+  (each line (word-wrap str len)
+    (print line)))
+
+(defn- lines [str]
+  (string/split "\n" str))
+
+(defn blank? [str]
+  (all |(= (chr " ") $) str))
+
+(defn parse-docstring [str]
+  (if (nil? str)
+    [nil nil]
+    (let [[summary & detail] (lines str)]
+      (def detail (drop-while blank? detail))
+      [summary (if (not (empty? detail))
+        (string/join detail "\n"))])))
+
+(defn docstring-summary [{:doc str}]
+  (or (first (parse-docstring str)) ""))
+
+(defn group [spec]
+  # TODO: word wrap
+  (def {:doc docstring :commands commands} spec)
+  (when docstring
+    (print-wrapped docstring desired-width)
+    (print))
+
+  (eachp [name command] commands
+    (printf "%s - %s" name (docstring-summary command))))
+
+(defn single [spec]
   (def {:named named-params
         :names param-names
         :pos positional-params
-        :doc doc-string} spec)
+        :doc docstring} spec)
 
-  (when doc-string
-    (print doc-string)
+  (def [summary details] (parse-docstring docstring))
+  (when summary
+    (print-wrapped summary desired-width)
     (print))
 
   (prin "  " (executable-name))
   (each param positional-params
     (prin " ")
-    # TODO: should we show the type annotation instead, and reserve
-    # the doc for elsewhere?
-    (def name (or (param :doc) (string/ascii-upper (param :sym))))
-    (prin (format-param name (param :handler))))
+    (prin (format-arg-string (param :handler))))
   (print "\n")
+
+  (when details
+    (print-wrapped details desired-width)
+    (print))
 
   (def params-and-names (sorted-by 0 (pairs (transpose-dict param-names))))
   (def named-arg-entries
@@ -81,7 +119,7 @@
       (def formatted-names (map |(format-param $ (param :handler)) names))
       # 2 is the length of the initial "  " and the separator ", "
       (def total-length (sum-by |(+ (length $) 2) formatted-names))
-      (def lines (if (<= total-length 30)
+      (def lines (if (<= total-length (/ desired-width 3))
         [(string/join formatted-names ", ")]
         formatted-names))
       [lines (or (param :doc) "undocumented")]))
@@ -91,7 +129,7 @@
 
     (def left-column-width (max-by |(max-by length (0 $)) named-arg-entries))
     (each [lefts docstring] named-arg-entries
-      (def rights (word-wrap docstring (max 40 (- 80 left-column-width))))
+      (def rights (word-wrap docstring (max (/ desired-width 2) (- desired-width left-column-width))))
 
       (zip-lines lefts rights (fn [first? last? left right]
         (def separator (if first? " : " (if (empty? right) "" "   ")))

@@ -155,7 +155,7 @@
     (loop [[context errs] :pairs err-table :when (not= context "")]
       (eprintf "%s: %s" context (first errs)))))
 
-(defn assignment [spec]
+(defn assignment [spec baked-spec args]
   (def params (spec :params))
   (def all-syms (seq [sym :keys params :when (not= (((params sym) :handler) :value) :soft-escape)] sym))
   (def {true private-syms false public-syms} (group-by |(truthy? (((params $) :handler) :nameless)) all-syms))
@@ -188,10 +188,10 @@
           ,try-with-context ,name ,$errors
           (,(handler :finish) ,$sym))))
     ~(def [,;public-syms]
-      (let [,$spec ,(bake-spec spec)] (with-dyns [,*spec* ,$spec]
+      (let [,$spec ,(or baked-spec (bake-spec spec))] (with-dyns [,*spec* ,$spec]
         ,;var-declarations
         (def ,$errors (,parse-args
-          (,args)
+          ,args
           ,$spec
           (,struct ,;refs)))
         ,;(finalizations-of private-syms)
