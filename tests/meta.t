@@ -9,10 +9,10 @@ Cmd shouldn't export too many symbols:
   cmd/defn
   cmd/print-help
   cmd/spec
+  cmd/def
   cmd/args
   cmd/group
   cmd/fn
-  cmd/script
   cmd/run
 
 cmd/spec and cmd/parse:

@@ -3,7 +3,7 @@
 Parameters are required by default:
 
   $ use <<EOF
-  > (cmd/script
+  > (cmd/def
   >   --arg :string)
   > (pp arg)
   > EOF
@@ -20,7 +20,7 @@ Parameters are required by default:
 Default value for optional flags is nil:
 
   $ use <<EOF
-  > (cmd/script
+  > (cmd/def
   >   --arg (optional :string))
   > (pp arg)
   > EOF
@@ -36,7 +36,7 @@ Default value for optional flags is nil:
 You can specify a custom default:
 
   $ use <<EOF
-  > (cmd/script
+  > (cmd/def
   >   --arg (optional :string "foo"))
   > (pp arg)
   > EOF
@@ -52,7 +52,7 @@ You can specify a custom default:
 Explicit required arguments:
 
   $ use <<EOF
-  > (cmd/script "doc"
+  > (cmd/def "doc"
   >   --arg (required :string))
   > (pp arg)
   > EOF
@@ -69,7 +69,7 @@ Explicit required arguments:
 Renamed flags:
 
   $ use <<EOF
-  > (cmd/script "doc"
+  > (cmd/def "doc"
   >   [renamed --arg] :string)
   > (pp renamed)
   > EOF
@@ -80,7 +80,7 @@ Renamed flags:
 Aliases:
 
   $ use <<EOF
-  > (cmd/script "doc"
+  > (cmd/def "doc"
   >   [--arg -a --other] :string)
   > (pp arg)
   > EOF
@@ -98,7 +98,7 @@ Aliases:
 Listed parameters, tuple:
 
   $ use <<EOF
-  > (cmd/script "doc"
+  > (cmd/def "doc"
   >   --arg (tuple :string))
   > (pp arg)
   > EOF
@@ -116,7 +116,7 @@ Listed parameters, tuple:
 Listed array parameters, array:
 
   $ use <<EOF
-  > (cmd/script "doc"
+  > (cmd/def "doc"
   >   --arg (array :string))
   > (pp arg)
   > EOF
@@ -134,7 +134,7 @@ Listed array parameters, array:
 Count parameters:
 
   $ use <<EOF
-  > (cmd/script "doc"
+  > (cmd/def "doc"
   >   -v (counted))
   > (pp v)
   > EOF
@@ -151,7 +151,7 @@ Count parameters:
 Flag parameters:
 
   $ use <<EOF
-  > (cmd/script "doc"
+  > (cmd/def "doc"
   >   -v (flag))
   > (pp v)
   > EOF
@@ -167,7 +167,7 @@ Flag parameters:
 Docstring is optional:
 
   $ use <<EOF
-  > (cmd/script --arg :string)
+  > (cmd/def --arg :string)
   > (pp arg)
   > EOF
 
@@ -180,7 +180,7 @@ Docstring is optional:
 Duplicates allowed, take last:
 
   $ use <<EOF
-  > (cmd/script "doc"
+  > (cmd/def "doc"
   >   --arg (last :string))
   > (pp arg)
   > EOF

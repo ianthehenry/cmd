@@ -4,10 +4,6 @@
 (use ./arg-parser)
 (use ./bridge)
 
-(defmacro script [& spec]
-  (def spec (parse-specification spec))
-  (assignment spec nil ~(,args)))
-
 (defmacro spec [& s]
   (bake-spec (parse-specification s)))
 
@@ -77,3 +73,6 @@
 
 (def print-help help/single)
 
+(defmacro def [& spec]
+  (def spec (parse-specification spec))
+  (assignment spec nil ~(,args)))

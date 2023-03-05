@@ -5,7 +5,7 @@
 ```janet
 (import cmd)
 
-(cmd/script "Print a friendly greeting"
+(cmd/def "Print a friendly greeting"
   --greeting (optional :string "Hello")
     "What to say. Defaults to hello."
   name :string)
@@ -33,15 +33,17 @@ Print a friendly greeting
 
 # Usage
 
-- `(cmd/script DSL)` parses `(dyn :args)` immediately and puts the results in the current scope.
-- `(cmd/simple [DSL] & body)` returns a function that takes a variadic number of string arguments and parses them according to the provided spec.
-- `(cmd/group & name fn)` returns a function that parses a hierarchical group.
-- `(cmd/main fn)` declares a `main` function that performs argument normalization and then calls the provided function.
+- `(cmd/def DSL)` parses `(dyn :args)` immediately and puts the results in the current scope -- just like `def`.
+- `(cmd/fn "docstring" [DSL] & body)` returns a simple command.
+- `(cmd/group "docstring" & name command)` returns a command made up of subcommands created from `cmd/fn` or `cmd/group`.
+- `(cmd/defn name "docstring" [DSL] & body)` declares a function that ignores its arguments and then parses `(cmd/args)`. You can use this to declare a `main` function.
+- `(cmd/defgroup name "docstring" & name command)` declares a function that ignores its arguments and then parses `(cmd/args)`. You can use this to declare a `main` function.
 
 Additionally, you can use:
 
 - `(cmd/spec DSL)` returns a spec as a first-class value.
 - `(cmd/parse spec args)` parses the provided arguments according to the spec, and returns a table of *keywords*, not symbols.
+- `(cmd/run command args)` calls a command returned by `(cmd/fn)` or `(cmd/group)`.
 - `(cmd/args)` returns `(dyn *args*)`, normalized according to the rules below.
 
 There is currently no way to produce a command-line spec except by using the DSL, so it's difficult to construct one dynamically.
@@ -51,7 +53,7 @@ There is currently no way to produce a command-line spec except by using the DSL
 You can specify multiple aliases for named parameters:
 
 ```janet
-(cmd/script
+(cmd/def
   [--foo -f] :string)
 (print foo)
 ```
@@ -63,7 +65,7 @@ hello
 By default `cmd` will create a binding based on the first provided alias. If you want to change this, specify a symbol without any leading dashes:
 
 ```janet
-(cmd/script
+(cmd/def
   [custom-name --foo -f] :string)
 (print custom-name)
 ```
@@ -92,11 +94,11 @@ There is also a special handler called `(escape)`, described below.
 You can omit this handler if your type is a keyword, struct, table, or inline PEG. The following are equivalent:
 
 ```janet
-(cmd/script
+(cmd/def
   --foo :string)
 ```
 ```janet
-(cmd/script
+(cmd/def
   --foo (required :string))
 ```
 
@@ -104,14 +106,14 @@ However, if you are providing a custom type parser, you need to explicitly speci
 
 ```janet
 (defn my-custom-parser [str] ...)
-(cmd/script
+(cmd/def
   --foo (required my-custom-parser))
 ```
 
 ## `(optional type &opt default)`
 
 ```janet
-(cmd/script
+(cmd/def
   --foo (optional :string "default value"))
 (print foo)
 ```
@@ -128,7 +130,7 @@ If left unspecified, the default default value is `nil`.
 ## `(flag)`
 
 ```janet
-(cmd/script
+(cmd/def
   --dry-run (flag))
 (printf "dry run: %q" dry-run)
 ```
@@ -143,7 +145,7 @@ dry run: true
 ## `(counted)`
 
 ```janet
-(cmd/script
+(cmd/def
   [verbosiy -v] (counter))
 (printf "verbosity level: %q" verbosity)
 ```
@@ -158,7 +160,7 @@ verbosity: 3
 ## `({array,tuple}{,+} type)`
 
 ```janet
-(cmd/script
+(cmd/def
   [words --word] (tuple :string))
 (pp words)
 ```
@@ -176,7 +178,7 @@ $ run --word hi --word bye
 `last?` is like `optional`, but the parameter can be specified multiple times, and only the last argument matters.
 
 ```janet
-(cmd/script
+(cmd/def
   --foo (last? :string "default"))
 (print foo)
 ```
@@ -193,7 +195,7 @@ bye
 `(effect)` allows you to create a flag that, when supplied, calls an arbitrary function.
 
 ```janet
-(cmd/script
+(cmd/def
   --version (effect (fn []
     (print "1.0")
     (os/exit 0))))
@@ -206,7 +208,7 @@ $ run --version
 You usually don't need to use the `(effect)` handler, because you can do something similar with a `(flag)`:
 
 ```janet
-(cmd/script
+(cmd/def
   --version (flag))
 (when version
   (print "1.0")
@@ -232,7 +234,7 @@ There are two kinds of escape: hard escape and soft escape.
 A "soft escape" causes all subsequent arguments to be parsed as positional arguments. Soft escapes will not create a binding.
 
 ```janet
-(cmd/script
+(cmd/def
   name :string
   -- (escape))
 (printf "Hello, %s!" name)
@@ -245,7 +247,7 @@ Hello, --bobby-tables!
 A hard escape stops all argument parsing, and creates a new binding that contains all subsequent arguments parsed according to their provided type.
 
 ```janet
-(cmd/script
+(cmd/def
   name (optional :string "anonymous")
   --rest (escape :string))
 
@@ -263,7 +265,7 @@ Hello, anonymous!
 You can mix required, optional, and variadic positional parameters, although you cannot specify more than one variadic positional parameter.
 
 ```janet
-(cmd/script
+(cmd/def
   first (required :string)
   second (optional :string)
   third (required :string))
@@ -282,7 +284,7 @@ The variadic positional parameter for a spec can be a hard escape, if it appears
 Only the final positional argument can be an escape, and like normal variadic positional arguments, it will take lower priority than optional positional arguments.
 
 ```
-(cmd/script
+(cmd/def
   name (optional :string "anonymous")
   rest (escape :string))
 
@@ -300,7 +302,7 @@ Hello, Janet!
 If the type of a parameter is a struct, it should enumerate a list of named parameters:
 
 ```janet
-(cmd/script
+(cmd/def
   format {--text :plain
           --html :rich})
 
@@ -316,7 +318,7 @@ The keys of the struct are parameter names, and the values of the struct are lit
 You can use structs with the `last?` handler to implement a toggleable flag:
 
 ```janet
-(cmd/script
+(cmd/def
   verbose (last? {--verbose true --no-verbose :false} false)
 
 (print verbose)
@@ -329,7 +331,7 @@ false
 You can specify aliases inside a struct like this:
 
 ```janet
-(cmd/script
+(cmd/def
   format {[--text -t] :plain
           --html :rich})
 
@@ -345,7 +347,7 @@ $ script -t
 If the type of a parameter is a table, it's parsed similarly to an enum, but will result in a value of the form `[:tag arg]`.
 
 ```janet
-(cmd/script
+(cmd/def
   format @{--text :string
            --html :string})
 (pp format)
@@ -361,7 +363,7 @@ $ run --html utf-8
 You can also specify an arbitrary expression to use as a custom tag, by making the values of the table bracketed tuples of the form `[tag type]`:
 
 ```janet
-(cmd/script
+(cmd/def
   format @{--text :string
            --html [(+ 1 2) :string]})
 (pp format)

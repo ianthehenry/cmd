@@ -3,7 +3,7 @@
 No docstring:
 
   $ use <<EOF
-  > (cmd/script)
+  > (cmd/def)
   > EOF
   $ run --help
     script.janet
@@ -15,7 +15,7 @@ No docstring:
 Undocumented parameters:
 
   $ use <<EOF
-  > (cmd/script --arg :string)
+  > (cmd/def --arg :string)
   > EOF
   $ run --help
     script.janet
@@ -28,7 +28,7 @@ Undocumented parameters:
 Docstring:
 
   $ use <<EOF
-  > (cmd/script "This is the docstring")
+  > (cmd/def "This is the docstring")
   > EOF
   $ run --help
   This is the docstring
@@ -42,7 +42,7 @@ Docstring:
 Param docstring:
 
   $ use <<EOF
-  > (cmd/script "doc" --arg :string "arg doc")
+  > (cmd/def "doc" --arg :string "arg doc")
   > (pp arg)
   > EOF
   $ run --help
@@ -58,7 +58,7 @@ Param docstring:
 Complex help:
 
   $ use <<EOF
-  > (cmd/script "This is the command description."
+  > (cmd/def "This is the command description."
   >   foo :string
   >   bar (optional ["BAR" :string])
   >   rest (tuple :string)
@@ -134,7 +134,7 @@ Word wrap of argument names:
 Help for variants:
 
   $ use <<EOF
-  > (cmd/script "This is the command description."
+  > (cmd/def "This is the command description."
   >   foo (optional @{[--bar -b] [:bar ["HEY" :string]] --baz :string}) "something"
   >   other {--foo 1} "something else"
   >   something {[--arg -a] 1 [--other -o] 2} "another")
@@ -160,7 +160,7 @@ Help for variants:
 Long description:
 
   $ use <<EOF
-  > (cmd/script "This is the command summary.\n\nThis is the detailed description.\n\nIt can be multiple paragraphs long, and it does wrap properly. It looks good, even. Look at that! It looks great." foo :string)
+  > (cmd/def "This is the command summary.\n\nThis is the detailed description.\n\nIt can be multiple paragraphs long, and it does wrap properly. It looks good, even. Look at that! It looks great." foo :string)
   > EOF
 
   $ run --help
@@ -180,7 +180,7 @@ Long description:
 Escapes:
 
   $ use <<EOF
-  > (cmd/script -- (escape))
+  > (cmd/def -- (escape))
   > EOF
 
   $ run --help

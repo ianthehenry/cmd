@@ -3,7 +3,7 @@
 Soft escapes cause all arguments to be parsed positionally:
 
   $ use <<EOF
-  > (cmd/script
+  > (cmd/def
   >   --arg (optional :string)
   >   name :string
   >   -- (escape))
@@ -16,7 +16,7 @@ Soft escapes cause all arguments to be parsed positionally:
 Soft escapes do not create a binding:
 
   $ use <<EOF
-  > (cmd/script
+  > (cmd/def
   >   --foo (escape))
   > (pp foo)
   > EOF
@@ -28,7 +28,7 @@ Soft escapes do not create a binding:
 Renamed soft escape are ignored:
 
   $ use <<EOF
-  > (cmd/script
+  > (cmd/def
   >   foo :string
   >   [foo --bar] (escape))
   > (pp foo)
@@ -39,7 +39,7 @@ Renamed soft escape are ignored:
 You can have multiple soft escapes:
 
   $ use <<EOF
-  > (cmd/script
+  > (cmd/def
   >   --arg (optional :string)
   >   name :string
   >   --foo (escape)
@@ -54,7 +54,7 @@ You can have multiple soft escapes:
 Hard escapes stop all subsequent command-line handling:
 
   $ use <<EOF
-  > (cmd/script
+  > (cmd/def
   >   foo (optional :string)
   >   --arg (optional :string)
   >   --esc (escape :string))
@@ -70,7 +70,7 @@ Hard escapes stop all subsequent command-line handling:
 Anonymous hard escapes:
 
   $ use <<EOF
-  > (cmd/script
+  > (cmd/def
   >   foo (optional :string)
   >   --arg (optional :string)
   >   esc (escape :string))

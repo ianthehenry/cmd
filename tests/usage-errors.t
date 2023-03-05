@@ -3,7 +3,7 @@
 Multiple errors:
 
   $ use <<EOF
-  > (cmd/script
+  > (cmd/def
   >   --arg :string
   >   --bar :string)
   > (pp arg)

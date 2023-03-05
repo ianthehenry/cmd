@@ -3,7 +3,7 @@
 Structs can be used as enums:
 
   $ use <<EOF
-  > (cmd/script "doc"
+  > (cmd/def "doc"
   >   choice {--foo 1 --bar 2})
   > (pp choice)
   > EOF
@@ -25,7 +25,7 @@ Structs can be used as enums:
 Tables can be used as enums with values:
 
   $ use <<EOF
-  > (cmd/script "doc"
+  > (cmd/def "doc"
   >   choice @{--foo :string --bar :string})
   > (pp choice)
   > EOF
@@ -51,7 +51,7 @@ Tables can be used as enums with values:
 Variant tags:
 
   $ use <<EOF
-  > (cmd/script "doc"
+  > (cmd/def "doc"
   >   choice @{--foo [:x :string] --bar [:y :string]})
   > (pp choice)
   > EOF
@@ -65,7 +65,7 @@ Dynamic tags:
 
   $ use <<EOF
   > (def x (+ 1 2))
-  > (cmd/script "doc"
+  > (cmd/def "doc"
   >   choice @{--foo [x :string] --bar [:y :string]})
   > (pp choice)
   > EOF
@@ -76,7 +76,7 @@ Dynamic tags:
 Aliases within structs:
 
   $ use <<EOF
-  > (cmd/script "doc"
+  > (cmd/def "doc"
   >   choice (required {[--foo -f] 1 --bar 2}))
   > (pp choice)
   > EOF
@@ -92,7 +92,7 @@ Aliases within structs:
 Toggle:
 
   $ use <<EOF
-  > (cmd/script "doc"
+  > (cmd/def "doc"
   >   choice (last? {--foo true --no-foo false} true))
   > (pp choice)
   > EOF

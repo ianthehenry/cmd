@@ -3,7 +3,7 @@
 Effects:
 
   $ use <<EOF
-  > (cmd/script
+  > (cmd/def
   >   --version (effect (fn [] (print "VERSION") (os/exit 0))))
   > (print "program")
   > EOF
