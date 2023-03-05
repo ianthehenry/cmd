@@ -158,7 +158,7 @@
 (defn assignment [spec baked-spec args]
   (def params (spec :params))
   (def all-syms (seq [sym :keys params :when (not= (((params sym) :handler) :value) :soft-escape)] sym))
-  (def {true private-syms false public-syms} (group-by |(truthy? (((params $) :handler) :nameless)) all-syms))
+  (def {true private-syms false public-syms} (group-by |(truthy? (((params $) :handler) :symless)) all-syms))
   (default private-syms [])
   (default public-syms [])
   (def gensyms (struct ;(catseq [sym :in all-syms] [sym (gensym)])))
