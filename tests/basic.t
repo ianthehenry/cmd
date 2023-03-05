@@ -181,7 +181,7 @@ Duplicates allowed, take last:
 
   $ use <<EOF
   > (cmd/def "doc"
-  >   --arg (last :string))
+  >   --arg (last+ :string))
   > (pp arg)
   > EOF
 
@@ -195,6 +195,28 @@ Duplicates allowed, take last:
   "foo"
   $ run --arg foo --arg bar
   "bar"
+  $ run --arg foo --arg
+  ! --arg: no value for argument
+  [1]
+
+Listed, non-empty:
+
+  $ use <<EOF
+  > (cmd/def "doc"
+  >   --arg (tuple+ :string))
+  > (pp arg)
+  > EOF
+
+  $ run
+  ! --arg: missing required argument
+  [1]
+  $ run --arg
+  ! --arg: no value for argument
+  [1]
+  $ run --arg foo
+  ("foo")
+  $ run --arg foo --arg bar
+  ("foo" "bar")
   $ run --arg foo --arg
   ! --arg: no value for argument
   [1]

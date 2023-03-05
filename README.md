@@ -91,8 +91,8 @@ Named parameters can have the following handlers:
 | ----------|------------------|----------------------------|
 | 1         |                  | `required`                 |
 | 0 or 1    | `flag`, `effect` | `optional`                 |
-| 0 or more | `counted`        | `tuple`, `array`, `last?`  |
-| 1 or more |                  | `tuple+`, `array+`, `last` |
+| 0 or more | `counted`        | `tuple`, `array`, `last`  |
+| 1 or more |                  | `tuple+`, `array+`, `last+` |
 
 Positional parameters can only have the values in the rightmost column.
 
@@ -180,15 +180,15 @@ $ run --word hi --word bye
 
 `(tuple+)` and `(array+)` require that at least one argument is provided.
 
-## `(last type)` and `(last? type &opt default)`
+## `(last type &opt default)` and `(last+ type)`
 
-`last` is like `required`, but the parameter can be specified multiple times, and only the last argument matters.
+`last` is like `optional`, but the parameter can be specified multiple times, and only the last argument matters.
 
-`last?` is like `optional`, but the parameter can be specified multiple times, and only the last argument matters.
+`last+` is like `required`, but the parameter can be specified multiple times, and only the last argument matters.
 
 ```janet
 (cmd/def
-  --foo (last? :string "default"))
+  --foo (last :string "default"))
 (print foo)
 ```
 ```
@@ -324,11 +324,11 @@ $ script --text
 
 The keys of the struct are parameter names, and the values of the struct are literal Janet values.
 
-You can use structs with the `last?` handler to implement a toggleable flag:
+You can use structs with the `last` handler to implement a toggleable flag:
 
 ```janet
 (cmd/def
-  verbose (last? {--verbose true --no-verbose :false} false)
+  verbose (last {--verbose true --no-verbose :false} false)
 
 (print verbose)
 ```
@@ -461,5 +461,5 @@ These are not fundamental limitations of this library, but merely unimplemented 
 # TODO
 
 - [ ] more built-in type parsers
-- [ ] `tuple+` and `array+`
-- [ ] put brackets around `tuple` but not `tuple+` args in help output
+- [ ] `help` subcommand
+- [ ] subcommand docstrings

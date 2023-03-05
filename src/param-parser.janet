@@ -100,6 +100,9 @@
      type-declaration
      (fn [[_ parse-string] name value] (parse-string value))]))
 
+(defn missing-required-argument []
+  (error "missing required argument"))
+
 (defn- handle/required [type-declaration]
   (def [additional-names takes-value? $type parse-string] (get-parser type-declaration))
   [additional-names
@@ -111,7 +114,7 @@
       (parse-string t name new))
     :finish (fn [val]
      (when (unset? val)
-       (error "missing required argument"))
+       (missing-required-argument))
      val)}])
 
 (defn- rewrite-value [handler new]
@@ -123,15 +126,16 @@
     :value (rewrite-value handler :optional)
     :finish (fn [val] (if (unset? val) default val)))])
 
-(defn- handle/last [type-declaration]
+(defn- handle/last+ [type-declaration]
   (def [additional-names handler] (handle/required type-declaration))
   [additional-names (struct/with-proto handler
-    :value (rewrite-value handler :variadic)
+    :value (rewrite-value handler :variadic+)
     :update (fn [t name _ new] ((handler :update) t name unset-sentinel new)))])
 
-(defn- handle/last? [type-declaration &opt default]
+(defn- handle/last [type-declaration &opt default]
   (def [additional-names handler] (handle/optional type-declaration default))
   [additional-names (struct/with-proto handler
+    :value (rewrite-value handler :variadic)
     :update (fn [t name _ new] ((handler :update) t name unset-sentinel new)))])
 
 (defn- handle/flag []
@@ -171,9 +175,27 @@
      old)
     :finish |$}])
 
+(defn- handle/listed-array+ [type-declaration]
+  (def [additional-names handler] (handle/listed-array type-declaration))
+  [additional-names (struct/with-proto handler
+    :value (rewrite-value handler :variadic+)
+    :finish (fn [arr]
+      (if (empty? arr)
+        (missing-required-argument))
+      arr))])
+
 (defn- handle/listed-tuple [type-declaration]
   (def [additional-names handler] (handle/listed-array type-declaration))
   [additional-names (struct/with-proto handler :finish tuple/slice)])
+
+(defn- handle/listed-tuple+ [type-declaration]
+  (def [additional-names handler] (handle/listed-array type-declaration))
+  [additional-names (struct/with-proto handler
+    :value (rewrite-value handler :variadic+)
+    :finish (fn [arr]
+      (if (empty? arr)
+        (missing-required-argument))
+      (tuple/slice arr)))])
 
 (defn- handle/escape [&opt type-declaration]
   (if (nil? type-declaration)
@@ -200,14 +222,16 @@
     'quasiquote (handle/required form)
     'required (handle/required ;(arity op args 1 1))
     'optional (handle/optional ;(arity op args 1 2))
-    'last (handle/last ;(arity op args 1 1))
-    'last? (handle/last? ;(arity op args 1 2))
+    'last (handle/last ;(arity op args 1 2))
+    'last+ (handle/last+ ;(arity op args 1 1))
     'counted (handle/counted ;(arity op args 0 0))
     'flag (handle/flag ;(arity op args 0 0))
     'escape (handle/escape ;(arity op args 0 1))
     'effect (handle/effect ;(arity op args 1 1))
     'tuple (handle/listed-tuple ;(arity op args 1 1))
+    'tuple+ (handle/listed-tuple+ ;(arity op args 1 1))
     'array (handle/listed-array ;(arity op args 1 1))
+    'array+ (handle/listed-array+ ;(arity op args 1 1))
     (errorf "unknown operation %q" op)))
 
 (defn- parse-handler [form]
@@ -257,6 +281,7 @@
     (cond
       (= value-handling :none) (errorf "illegal handler for positional argument %s" sym)
       (or (= value-handling :variadic)
+          (= value-handling :variadic+)
           (= value-handling :greedy))
         (do
           (assert (nil? (ctx :variadic-positional))

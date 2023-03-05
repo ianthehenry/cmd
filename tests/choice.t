@@ -93,7 +93,7 @@ Toggle:
 
   $ use <<EOF
   > (cmd/def "doc"
-  >   choice (last? {--foo true --no-foo false} true))
+  >   choice (last {--foo true --no-foo false} true))
   > (pp choice)
   > EOF
 

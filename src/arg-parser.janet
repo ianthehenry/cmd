@@ -16,6 +16,7 @@
       :required (++ num-required-params)
       :optional (++ num-optional-params)
       :variadic nil
+      :variadic+ nil
       :greedy nil
       (errorf "BUG: unknown value handler %q" value-handling)))
 
@@ -38,7 +39,7 @@
     (++ arg-index)
     arg)
   (each param params
-    (case ((param :handler) :value)
+    (match ((param :handler) :value)
       :required (do
         (if (< arg-index num-args)
           (assign param (take-arg))
@@ -49,12 +50,12 @@
         (when (> num-optional-args 0)
           (assign param (take-arg))
           (-- num-optional-args))
-      :variadic
+      (handling (or (= handling :variadic) (= handling :variadic+)))
         (while (> num-variadic-args 0)
           (assign param (take-arg))
           (-- num-variadic-args))
       :greedy nil
-      (assert false)))
+      _ (assert false)))
 
   (when (< arg-index num-args)
     (table/push errors "" (string/format "unexpected argument %s" (args arg-index))))

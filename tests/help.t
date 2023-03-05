@@ -63,7 +63,7 @@ Complex help:
   >   bar (optional ["BAR" :string])
   >   rest (tuple :string)
   >   baz (optional ["BAZ" :string])
-  >   --arg (last :string) "arg help"
+  >   --arg (last+ :string) "arg help"
   >   format {--text :plain --html :rich} "how to print results"
   >   [arg-sym --alias -a --long-other-alias] :string "how to print results")
   > EOF
@@ -76,7 +76,7 @@ Complex help:
   === flags ===
   
     [-?], [-h], [--help]      : Print this help text and exit
-    [--arg STRING]...         : arg help
+    --arg STRING...           : arg help
     -a STRING                 : how to print results
     --alias STRING
     --long-other-alias STRING
@@ -206,3 +206,43 @@ Examples from the readme:
   === flags ===
   
     [-?], [-h], [--help] : Print this help text and exit
+
+Every handler:
+
+  $ use <<EOF
+  > (cmd/def 
+  >   --required (required :string)
+  >   --optional (optional :string)
+  >   --tuple (tuple :string)
+  >   --tuple+ (tuple+ :string)
+  >   --array (array :string)
+  >   --array+ (array+ :string)
+  >   --last (last :string)
+  >   --last+ (last+ :string)
+  >   --flag (flag)
+  >   --effect (effect (fn []))
+  >   --counted (counted)
+  >   --soft-escape (escape)
+  >   --hard-escape (escape :string)
+  > )
+  > EOF
+
+  $ run --help
+    script.janet
+  
+  === flags ===
+  
+    [--effect]                : undocumented
+    [--soft-escape]           : Treat all subsequent arguments as positional
+    [-?], [-h], [--help]      : Print this help text and exit
+    [--array STRING]...       : undocumented
+    --array+ STRING...        : undocumented
+    [--counted]               : undocumented
+    [--flag]                  : undocumented
+    [--hard-escape STRING...] : undocumented
+    [--last STRING]...        : undocumented
+    --last+ STRING...         : undocumented
+    [--optional STRING]       : undocumented
+    --required STRING         : undocumented
+    [--tuple STRING]...       : undocumented
+    --tuple+ STRING...        : undocumented

@@ -96,6 +96,22 @@ Variadic positional parameters:
   $ run 1 2
   ("1" "2")
 
+Variadic non-empty positional parameters:
+
+  $ use <<EOF
+  > (cmd/def
+  >   arg (tuple+ :string))
+  > (pp arg)
+  > EOF
+
+  $ run
+  ! arg: missing required argument
+  [1]
+  $ run 1
+  ("1")
+  $ run 1 2
+  ("1" "2")
+
 Variadic and required positional parameters:
 
   $ use <<EOF

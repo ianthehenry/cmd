@@ -56,7 +56,8 @@
     :none (string "["str"]")
     :optional (string "["str" "arg"]")
     :variadic (string "["str" "arg"]...")
-    :greedy (string "["str" "arg"]...")
+    :variadic+ (string ""str" "arg"...")
+    :greedy (string "["str" "arg"...]")
     :soft-escape (string "["str"]")
     (errorf "BUG: unknown value handling %q" value-handling)))
 
