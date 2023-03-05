@@ -1,6 +1,6 @@
 # `cmd` is a work in progress. It's not ready for you to use it yet!
 
-`cmd` is a Janet library for parsing command-line arguments and auto-generating help text.
+`cmd` is a Janet library for parsing command-line arguments and auto-generating descriptions of commands. It can parse subcommands, named arguments, and positional arguments.
 
 ```janet
 (import cmd)
@@ -41,16 +41,16 @@ You will mostly use the following macros:
 - `(cmd/group "docstring" & name command)` returns a command made up of subcommands created from `cmd/fn` or `cmd/group`.
 - `(cmd/main command)` declares a function called `main` that ignores its arguments and then calls `(cmd/run command (cmd/args))`.
 
-There are also some convenient helpers:
+There are also some convenience helpers:
 
-- `(cmd/peg ~(some :d))` returns a function that parses the given PEG or raises. You can use this to easily create custom type parsers.
+- `(cmd/peg ~(<- (some :d)))` returns a function that takes a string and parses it according to the given PEG, raising if the PEG fails to parse or if it does not produce exactly one capture. You can use this to easily create custom types.
 - `(cmd/defn name "docstring" [DSL] & body)` gives a name to a simple command.
 - `(cmd/defgroup name "docstring" & name command)` gives a name to a command group.
 
-However, you can integrate `cmd` into your project more by using some lower level helpers:
+You probably won't need to use any of these, but if you want to integrate `cmd` into an existing project you can use some lower level helpers:
 
 - `(cmd/spec DSL)` returns a spec as a first-class value.
-- `(cmd/parse spec args)` parses the provided arguments according to the spec, and returns a table of *keywords*, not symbols.
+- `(cmd/parse spec args)` parses the provided arguments according to the spec, and returns a table of *keywords*, not symbols. Note that this might have side effects if you supply an `(effect)` argument (like `--help`).
 - `(cmd/run command args)` runs a command returned by `(cmd/fn)` or `(cmd/group)` with the provided arguments.
 - `(cmd/print-help command)` prints the help for a command.
 - `(cmd/args)` returns `(dyn *args*)`, normalized according to the rules described below.
