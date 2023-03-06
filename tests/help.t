@@ -278,3 +278,20 @@ Word wrap in group help output:
     foo  - this is a verbose description of the subcommand which will wrap and lay out
            nicely just like you'd expect it to
     help - explain a subcommand
+
+Group help for unknown subcommand:
+
+  $ use <<EOF
+  > (cmd/main (cmd/group
+  >   foo (cmd/fn "this is a verbose description of the subcommand which will wrap and lay out nicely just like you'd expect it to" [] (print "foo"))
+  >   bar (cmd/fn "this one's simple" [] (print "bar"))
+  > ))
+  > EOF
+
+  $ run help baz
+    bar  - this one's simple
+    foo  - this is a verbose description of the subcommand which will wrap and lay out
+           nicely just like you'd expect it to
+    help - explain a subcommand
+  ! unknown subcommand baz
+  [1]

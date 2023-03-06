@@ -46,7 +46,7 @@
   (if command
     (if-let [subcommand ((spec :commands) command)]
       ((subcommand :help))
-      (print-group-help-and-error spec))
+      (print-group-help-and-error spec "unknown subcommand %s" command))
     (help/group spec))))
 
 (defmacro spec [& s]
