@@ -373,7 +373,7 @@
   (def help-names (seq [name :in default-help-names :when (hasnt? (ctx :names) name)] name))
   (unless (empty? help-names)
     (def [_ handler] (handle/effect (defn []
-      (help/single (dyn *spec*))
+      (help/simple (dyn *spec*))
       (os/exit 0))))
     (def help-param
       {:names [public-help-name]

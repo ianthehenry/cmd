@@ -10,10 +10,9 @@ Basic group:
   > EOF
 
   $ run
-  this is the docstring
-  
-  foo - what foo does
-  bar - what bar does
+    bar  - what bar does
+    foo  - what foo does
+    help - explain a subcommand
   [1]
 
   $ run foo bar
@@ -21,10 +20,9 @@ Basic group:
   $ run bar some arguments
   bar called ("some" "arguments")
   $ run baz
-  this is the docstring
-  
-  foo - what foo does
-  bar - what bar does
+    bar  - what bar does
+    foo  - what foo does
+    help - explain a subcommand
   ! unknown subcommand baz
   [1]
 
@@ -37,9 +35,8 @@ Combining groups and functions:
   > EOF
 
   $ run
-  this is the docstring
-  
-  foo - 
+    foo - 
+    help - explain a subcommand
   [1]
 
   $ run foo
@@ -65,10 +62,9 @@ Nesting groups:
   hello
 
   $ run advanced
-  this is the docstring
-  
-  foo - 
-  bar - 
+    bar - 
+    foo - 
+    help - explain a subcommand
   [1]
   $ run advanced foo
   ! --arg: missing required argument
@@ -88,8 +84,7 @@ Groups only show the summary line:
   > EOF
 
   $ run
-  this is the docstring
-  
-  foo - this is a long string
-  bar - only a summary line
+    bar  - only a summary line
+    foo  - this is a long string
+    help - explain a subcommand
   [1]

@@ -4,62 +4,22 @@
 (use ./arg-parser)
 (use ./bridge)
 
-(defmacro spec [& s]
-  (bake-spec (parse-specification s)))
-
-(def args args)
-(def parse parse)
-
-(defn run [command args]
-  (def f (assertf (command :fn) "invalid command %q" command))
-  (f args))
-
-(defmacro group [& s]
-  (if (odd? (length s))
-    (error "group requires an even number of arguments"))
-
-  (def commands
-    (tabseq [[name command] :in (partition 2 s)]
-      (string name) command))
-
-  (defn print-help-and-exit [spec & messages]
-    (unless (empty? messages)
-      (eprintf ;messages))
+(defn print-help [spec]
+  (if (spec :commands)
     (help/group spec)
-    (os/exit 1))
+    (help/simple spec)))
 
-  (def docstring "this is the docstring")
+(defn- print-group-help-and-error [spec & messages]
+  (unless (empty? messages)
+    (eprintf ;messages))
+  (help/group spec)
+  (os/exit 1))
 
-  # TODO: we could also accumulate arguments
-  (with-syms [$commands $spec]
-    ~(let [,$commands ,commands
-           ,$spec {:doc ,docstring :commands ,$commands}]
-      {:fn (fn [args]
-        (match args
-          [first & rest]
-            (if-let [command (,$commands first)]
-              (,run command rest)
-              (,print-help-and-exit ,$spec "unknown subcommand %s" first))
-          [] (,print-help-and-exit ,$spec)))
-       :doc (,$spec :doc)
-       :help (fn [] (,help/group ,$spec))})))
-
-(defmacro defgroup [name & s]
-  ~(def ,name (as-macro ,group ,;s)))
-
-(defmacro main [command]
-  ~(defn main [&] (,run ,command (,args))))
-
-(defn peg [name peg-dsl]
-  (def peg (peg/compile peg-dsl))
-  [name
-   (fn [str]
-     (def matches (peg/match peg str))
-     (if (and (not (nil? matches)) (has? length matches 1))
-       (first matches)
-       (errorf "unable to parse %q" str)))])
-
-(defmacro fn [& args]
+# TODO: the representation of having the :help
+# function is a little odd. we could just represent
+# the command as the fully-parsed spec, and have
+# cmd/run do the same check as cmd/print-help
+(defmacro- simple-command [& args]
   (def [spec body]
     (case (length args)
       0 (error "not enough arguments")
@@ -78,12 +38,78 @@
         ,(assignment spec $spec $args)
         ,;body)
        :doc (,$spec :doc)
-       :help (fn [] (,help/single ,$spec))})))
+       :help (fn [] (,help/simple ,$spec))})))
+
+(def- help-command (simple-command "explain a subcommand"
+  [command (optional ["COMMAND" :string])]
+  (def spec (dyn *spec*))
+  (if command
+    (if-let [subcommand ((spec :commands) command)]
+      ((subcommand :help))
+      (print-group-help-and-error spec))
+    (help/group spec))))
+
+(defmacro spec [& s]
+  (bake-spec (parse-specification s)))
+
+(def args args)
+(def parse parse)
+
+(defn run [command args]
+  (def f (assertf (command :fn) "invalid command %q" command))
+  (f args))
+
+(defmacro group [& spec]
+  (def [docstring spec]
+    (if (string? (first spec))
+      [(first spec) (drop 1 spec)]
+      [nil spec]))
+
+  (if (odd? (length spec))
+    (errorf "subcommand %q has no implementation" (last spec)))
+
+  (def commands
+    (tabseq [[name command] :in (partition 2 spec)]
+      (string name) command))
+
+  (unless (commands "help")
+    (put commands "help" help-command))
+
+  # TODO: we could also accumulate flag-looking arguments and pass
+  # them to the command, so that `foo --verbose bar` meant the same
+  # thing as `foo bar --verbose`.
+  (with-syms [$commands $spec]
+    ~(let [,$commands ,commands
+           ,$spec {:doc ,docstring :commands ,$commands}]
+      {:fn (fn [args]
+        (match args
+          [first & rest]
+            (if-let [command (,$commands first)]
+              (with-dyns [,*spec* ,$spec] (,run command rest))
+              (,print-group-help-and-error ,$spec "unknown subcommand %s" first))
+          [] (,print-group-help-and-error ,$spec)))
+       :doc (,$spec :doc)
+       :help (fn [] (,help/group ,$spec))})))
+
+(defmacro defgroup [name & s]
+  ~(def ,name (as-macro ,group ,;s)))
+
+(defmacro main [command]
+  ~(defn main [&] (,run ,command (,args))))
+
+(defn peg [name peg-dsl]
+  (def peg (peg/compile peg-dsl))
+  [name
+   (fn [str]
+     (def matches (peg/match peg str))
+     (if (and (not (nil? matches)) (has? length matches 1))
+       (first matches)
+       (errorf "unable to parse %q" str)))])
+
+(def fn :macro simple-command)
 
 (defmacro defn [name & args]
   ~(def ,name (as-macro ,fn ,;args)))
-
-(def print-help help/single)
 
 (defmacro def [& spec]
   (def spec (parse-specification spec))

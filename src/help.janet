@@ -82,6 +82,17 @@
 (defn docstring-summary [{:doc str}]
   (or (first (parse-docstring str)) ""))
 
+(defn print-columns [sep entries]
+  (def left-column-width (max-by |(max-by length (0 $)) entries))
+  (each [lefts docstring] entries
+    (def rights (word-wrap docstring (max (/ desired-width 2) (- desired-width left-column-width))))
+
+    (zip-lines lefts rights (fn [first? last? left right]
+      (def sep (if first? sep (if (empty? right) "" "   ")))
+      (def pad-to (if (empty? right) 0 left-column-width))
+      (print "  " (right-pad left pad-to) sep right)
+      ))))
+
 (defn group [spec]
   # TODO: word wrap
   (def {:doc docstring :commands commands} spec)
@@ -89,8 +100,11 @@
     (print-wrapped docstring desired-width)
     (print))
 
-  (eachp [name command] commands
-    (printf "%s - %s" name (docstring-summary command))))
+  (def commands (sorted-by 0 (pairs commands)))
+
+  # TODO: bit of code duplication here
+  (print-columns " - " (seq [[name command] :in commands]
+    [[name] (docstring-summary command)])))
 
 (defn- default-description [param]
   (case ((param :handler) :value)
@@ -98,7 +112,7 @@
     "undocumented"
     ))
 
-(defn single [spec]
+(defn simple [spec]
   (def {:named named-params
         :names param-names
         :pos positional-params
@@ -134,12 +148,4 @@
   (unless (empty? named-arg-entries)
     (print "=== flags ===\n")
 
-    (def left-column-width (max-by |(max-by length (0 $)) named-arg-entries))
-    (each [lefts docstring] named-arg-entries
-      (def rights (word-wrap docstring (max (/ desired-width 2) (- desired-width left-column-width))))
-
-      (zip-lines lefts rights (fn [first? last? left right]
-        (def separator (if first? " : " (if (empty? right) "" "   ")))
-        (def pad-to (if (empty? right) 0 left-column-width))
-        (print "  " (right-pad left pad-to) separator right)
-        )))))
+    (print-columns " : " named-arg-entries)))

@@ -142,3 +142,10 @@ Positional effect:
   $ run_err
   ! script.janet:2:1: compile error: error: (macro) positional argument needs a valid symbol
   [1]
+
+Group without implementation:
+
+  $ use <<<'(cmd/group foo)'
+  $ run_err
+  ! script.janet:2:1: compile error: error: (macro) subcommand foo has no implementation
+  [1]
