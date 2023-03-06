@@ -23,13 +23,14 @@ If you want to use `cmd`, add it to the `dependencies` in your `project.janet` f
 
 # Example
 
+A minimal usage looks like this:
+
 ```janet
 (import cmd)
 
-(cmd/def "Print a friendly greeting"
+(cmd/def
   --greeting (optional :string "Hello")
-    "What to say. Defaults to hello."
-  name ["NAME" :string])
+  name :string)
 
 (printf "%s, %s!" greeting name)
 ```
@@ -41,6 +42,20 @@ Hello, Janet!
 $ greet Janet --greeting "Howdy there"
 Howdy there, Janet!
 ```
+
+But by adding a few more annotations, `cmd` will autogenerate nice `--help` output as well:
+
+```janet
+(import cmd)
+
+(cmd/def "Print a friendly greeting"
+  --greeting (optional :string "Hello")
+    "What to say. Defaults to hello."
+  name ["NAME" :string])
+
+(printf "%s, %s!" greeting name)
+```
+
 ```
 $ greet --help
 Print a friendly greeting
