@@ -17,7 +17,7 @@ If you want to use `cmd`, add it to the `dependencies` in your `project.janet` f
   :name "my-neat-command-line-app"
   :dependencies [
     {:url "https://github.com/ianthehenry/cmd.git"
-     :tag "v1.0.0"}
+     :tag "v1.0.1"}
   ])
 ```
 
@@ -500,6 +500,11 @@ These are not fundamental limitations of this library, but merely unimplemented 
 - There is no auto-generated shell completion file, even though we have sufficient information to create one.
 
 # Changelog
+
+## `v1.0.1` - 2023-03-22
+
+- improved error message for unknown subcommands when using `cmd/group`
+- `cmd/peg` can now take a pre-compiled PEG
 
 ## `v1.0.0` - 2023-03-05
 
