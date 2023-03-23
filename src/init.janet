@@ -98,7 +98,10 @@
   ~(defn main [&] (,run ,command (,args))))
 
 (defn peg [name peg-dsl]
-  (def peg (peg/compile peg-dsl))
+  (def peg
+    (case (type peg-dsl)
+      :core/peg peg-dsl
+      (peg/compile peg-dsl)))
   [name
    (fn [str]
      (def matches (peg/match peg str))

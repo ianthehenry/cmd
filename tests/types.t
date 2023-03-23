@@ -20,6 +20,18 @@ cmd/peg:
   ! --arg: unable to parse "ba"
   [1]
 
+cmd/peg works with precompiled pegs:
+
+  $ use <<EOF
+  > (def peg (peg/compile ~(<- "x")))
+  > (cmd/def "doc"
+  >   --arg (required (cmd/peg "<x>" peg)))
+  > (pp arg)
+  > EOF
+
+  $ run --arg x
+  "x"
+
 Arbitrary functions:
 
   $ use <<EOF
