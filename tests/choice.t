@@ -9,7 +9,7 @@ Structs can be used as enums:
   > EOF
 
   $ run
-  ! --foo/--bar: missing required argument
+  ! --bar/--foo: missing required argument
   [1]
   $ run --foo
   1

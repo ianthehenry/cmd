@@ -87,7 +87,7 @@
 (defn display-name [{:names names :sym sym}]
   (if (or (nil? names) (empty? names))
     (string sym)
-    (string/join names "/")))
+    (string/join (sorted names) "/")))
 
 (defn bake-spec [ctx]
   {:named (quote-named-params (ctx :named-params))
