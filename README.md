@@ -501,6 +501,10 @@ These are not fundamental limitations of this library, but merely unimplemented 
 
 # Changelog
 
+## next
+
+- usage line in `--help` output only prints the basename of the executable, instead of the full path
+
 ## `v1.0.1` - 2023-03-22
 
 - improved error message for unknown subcommands when using `cmd/group`

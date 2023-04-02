@@ -32,9 +32,11 @@
     (f (= i 0) (= i last-i) (get lefts i "") (get rights i ""))))
 
 (defn- executable-name []
-  (if (is-probably-interpreter?)
-    (or (first (dyn *args*)) (dyn *executable*))
-      (dyn *executable*)))
+  (def executable-path
+    (if (is-probably-interpreter?)
+      (or (first (dyn *args*)) (dyn *executable*))
+        (dyn *executable*)))
+  (last (string/split "/" executable-path)))
 
 (defn- format-arg-string [handler &opt str]
   (def {:value value-handling :type type} handler)

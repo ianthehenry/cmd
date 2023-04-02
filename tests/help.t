@@ -1,5 +1,26 @@
   $ source $TESTDIR/scaffold
 
+Executable name prints the same regardless of how it's invoked:
+
+  $ cat >script.janet <<EOF
+  > #!/usr/bin/env janet
+  > (import src :as cmd)
+  > (cmd/def)
+  > EOF
+  $ chmod +x script.janet
+  $ JANET_PATH="$TESTDIR/.." ./script.janet --help
+    script.janet
+  
+  === flags ===
+  
+    [--help] : Print this help text and exit
+  $ JANET_PATH="$TESTDIR/.." $PWD/script.janet --help
+    script.janet
+  
+  === flags ===
+  
+    [--help] : Print this help text and exit
+
 No docstring:
 
   $ use <<EOF
