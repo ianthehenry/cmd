@@ -503,7 +503,8 @@ These are not fundamental limitations of this library, but merely unimplemented 
 
 ## next
 
-- usage line in `--help` output only prints the basename of the executable, instead of the full path
+- `--help` output only prints the basename of the executable in the usage line, regardless of the path that it was invoked with
+- `--help` output for `group`ed commands now includes the subcommand path in the usage line
 
 ## `v1.0.1` - 2023-03-22
 

@@ -1,4 +1,5 @@
 (use ./util)
+(use ./bridge)
 
 # janet has no built-in way to detect the terminal width.
 # might be nice to allow the user to set a dynamic variable,
@@ -126,6 +127,8 @@
     (print))
 
   (prin "  " (executable-name))
+  (each subcommand (dyn *subcommand-path* [])
+    (print " " subcommand))
   (each param positional-params
     (prin " ")
     (prin (format-arg-string (param :handler))))

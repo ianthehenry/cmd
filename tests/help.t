@@ -316,3 +316,28 @@ Group help for unknown subcommand:
     help - explain a subcommand
   ! unknown subcommand baz
   [1]
+
+Subcommand --help includes the subcommand path in the usage line:
+
+  $ use <<EOF
+  > (cmd/main (cmd/group
+  >   foo (cmd/fn [] (print "foo"))
+  >   bar (cmd/fn [] (print "bar"))
+  > ))
+  > EOF
+
+  $ run help foo
+    script.janet foo
+  
+  
+  === flags ===
+  
+    [--help] : Print this help text and exit
+
+  $ run foo --help
+    script.janet foo
+  
+  
+  === flags ===
+  
+    [--help] : Print this help text and exit

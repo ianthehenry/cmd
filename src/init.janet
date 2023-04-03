@@ -40,12 +40,21 @@
        :doc (,$spec :doc)
        :help (fn [] (,help/simple ,$spec))})))
 
+(defn- extend-subcommand-path [command]
+  [;(dyn *subcommand-path* []) command])
+
+(defn- rewrite-last-subcommand-entry [new]
+  (def current-path (dyn *subcommand-path* []))
+  (def but-last (tuple/slice current-path 0 (- (length current-path) 1)))
+  [;but-last new])
+
 (def- help-command (simple-command "explain a subcommand"
   [command (optional ["COMMAND" :string])]
   (def spec (dyn *spec*))
   (if command
     (if-let [subcommand ((spec :commands) command)]
-      ((subcommand :help))
+      (with-dyns [*subcommand-path* (rewrite-last-subcommand-entry command)]
+        ((subcommand :help)))
       (print-group-help-and-error spec "unknown subcommand %s" command))
     (help/group spec))))
 
@@ -85,7 +94,9 @@
         (match args
           [first & rest]
             (if-let [command (,$commands first)]
-              (with-dyns [,*spec* ,$spec] (,run command rest))
+              (with-dyns [,*spec* ,$spec
+                          ,*subcommand-path* (,extend-subcommand-path first)]
+                (,run command rest))
               (,print-group-help-and-error ,$spec "unknown subcommand %s" first))
           [] (,print-group-help-and-error ,$spec)))
        :doc (,$spec :doc)

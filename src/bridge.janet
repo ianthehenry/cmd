@@ -3,6 +3,7 @@
 (use ./util)
 
 (def *spec* (keyword (gensym)))
+(def *subcommand-path* (keyword (gensym)))
 
 (defn- parse-number [str]
   (if-let [num (scan-number str)]
