@@ -17,7 +17,7 @@ If you want to use `cmd`, add it to the `dependencies` in your `project.janet` f
   :name "my-neat-command-line-app"
   :dependencies [
     {:url "https://github.com/ianthehenry/cmd.git"
-     :tag "v1.0.1"}
+     :tag "v1.0.2"}
   ])
 ```
 
@@ -501,7 +501,7 @@ These are not fundamental limitations of this library, but merely unimplemented 
 
 # Changelog
 
-## next
+## `v1.0.2` - 2023-04-02
 
 - `--help` output only prints the basename of the executable in the usage line, regardless of the path that it was invoked with
 - `--help` output for `group`ed commands now includes the subcommand path in the usage line
