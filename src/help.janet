@@ -39,10 +39,22 @@
         (dyn *executable*)))
   (last (string/split "/" executable-path)))
 
+(defn wrap-handling [str value-handling]
+  (case value-handling
+    :required str
+    :none (string "["str"]")
+    :optional (string "["str"]")
+    :variadic (string "["str"]...")
+    :variadic+ (string str"...")
+    :greedy (string "["str"...]")
+    :soft-escape (string "["str"]")
+    (errorf "BUG: unknown value handling %q" value-handling)))
+
 (defn- format-arg-string [handler &opt str]
   (def {:value value-handling :type type} handler)
-  (if (= value-handling :none)
-    nil
+  (case value-handling
+    :none nil
+    :soft-escape nil
     (let [[first second] type]
       (if (string? first)
         first
@@ -51,18 +63,16 @@
               [_ [arg _]] (second sym)]
           arg)))))
 
-(defn- format-param [str handler]
-  (def value-handling (handler :value))
+(defn- format-named-param [str handler]
   (def arg (format-arg-string handler str))
-  (case value-handling
-    :required (string str " " arg)
-    :none (string "["str"]")
-    :optional (string "["str" "arg"]")
-    :variadic (string "["str" "arg"]...")
-    :variadic+ (string ""str" "arg"...")
-    :greedy (string "["str" "arg"...]")
-    :soft-escape (string "["str"]")
-    (errorf "BUG: unknown value handling %q" value-handling)))
+  (wrap-handling
+    (if arg (string str " " arg) str)
+    (handler :value)))
+
+(defn- format-positional-param [handler]
+  (wrap-handling
+    (format-arg-string handler)
+    (handler :value)))
 
 (defn- print-wrapped [str len]
   (each line (word-wrap str len)
@@ -131,7 +141,7 @@
     (print " " subcommand))
   (each param positional-params
     (prin " ")
-    (prin (format-arg-string (param :handler))))
+    (prin (format-positional-param (param :handler))))
   (print "\n")
 
   (when details
@@ -142,7 +152,7 @@
     (seq [[_ param] :in (sorted-by 0 (pairs named-params))]
       (def {:names names} param)
       (def names (sorted-by |(string/triml $ "-") names))
-      (def formatted-names (map |(format-param $ (param :handler)) names))
+      (def formatted-names (map |(format-named-param $ (param :handler)) names))
       # 2 is the length of the initial "  " and the separator ", "
       (def total-length (sum-by |(+ (length $) 2) formatted-names))
       (def lines (if (<= total-length (/ desired-width 3))

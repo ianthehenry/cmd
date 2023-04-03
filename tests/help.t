@@ -109,7 +109,7 @@ Complex help:
   $ run --help
   This is the command description.
   
-    script.janet STRING BAR STRING BAZ
+    script.janet STRING [BAR] [STRING]... [BAZ]
   
   === flags ===
   
@@ -337,6 +337,21 @@ Subcommand --help includes the subcommand path in the usage line:
   $ run foo --help
     script.janet foo
   
+  
+  === flags ===
+  
+    [--help] : Print this help text and exit
+
+Positional arguments use the same format handlers as named arguments:
+
+  $ use <<EOF
+  > (cmd/def
+  >   foo (optional :string)
+  >   bar (tuple :string))
+  > EOF
+
+  $ run --help
+    script.janet [STRING] [STRING]...
   
   === flags ===
   
