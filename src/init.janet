@@ -28,7 +28,7 @@
         (cond 
           (string? first) [(tuple/brackets first ;second) rest]
           (and (tuple? first)
-               (string? (eval first))) [(tuple/brackets (eval first) ;second) rest]
+               (string? (try (eval first) ([_ _] :fail)))) [(tuple/brackets (eval first) ;second) rest]
           [first [second ;rest]]))))
 
   (unless (has? type+ spec :tuple-brackets)
@@ -74,7 +74,8 @@
   (def [docstring spec]
     (cond 
       (string? (first spec)) [(first spec) (drop 1 spec)]
-      (and (tuple? (first spec)) (string? (eval (first spec)))) [(eval (first spec)) (drop 1 spec)]
+      (and (tuple? (first spec)) 
+           (string? (try (eval (first spec)) ([_ _] :fail)))) [(eval (first spec)) (drop 1 spec)]
       [nil spec]))
 
   (if (odd? (length spec))
