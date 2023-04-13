@@ -70,8 +70,9 @@
 
 (defmacro group [& spec]
   (def [docstring spec]
-    (if (string? (first spec))
-      [(first spec) (drop 1 spec)]
+    (cond 
+      (string? (first spec)) [(first spec) (drop 1 spec)]
+      (and (tuple? (first spec)) (string? (eval (first spec)))) [(eval (first spec)) (drop 1 spec)]
       [nil spec]))
 
   (if (odd? (length spec))
