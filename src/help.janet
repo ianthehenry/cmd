@@ -33,10 +33,7 @@
     (f (= i 0) (= i last-i) (get lefts i "") (get rights i ""))))
 
 (defn- executable-name []
-  (def executable-path
-    (if (is-probably-interpreter?)
-      (or (first (dyn *args*)) (dyn *executable*))
-        (dyn *executable*)))
+  (def executable-path (first (dyn *args*)))
   (last (string/split "/" executable-path)))
 
 (defn wrap-handling [str value-handling]
