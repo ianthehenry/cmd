@@ -17,7 +17,7 @@ If you want to use `cmd`, add it to the `dependencies` in your `project.janet` f
   :name "my-neat-command-line-app"
   :dependencies [
     {:url "https://github.com/ianthehenry/cmd.git"
-     :tag "v1.0.2"}
+     :tag "v1.0.3"}
   ])
 ```
 
@@ -511,6 +511,10 @@ These are not fundamental limitations of this library, but merely unimplemented 
 - There is no auto-generated shell completion file, even though we have sufficient information to create one.
 
 # Changelog
+
+## `v1.0.3` - 2023-04-12
+
+- Fix `cmd` when used in a compiled executable.
 
 ## `v1.0.2` - 2023-04-02
 
