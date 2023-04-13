@@ -202,7 +202,7 @@ dry run: true
 
 ```janet
 (cmd/def
-  [verbosiy -v] (counter))
+  [verbosity -v] (counted))
 (printf "verbosity level: %q" verbosity)
 ```
 ```
