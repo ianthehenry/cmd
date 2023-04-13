@@ -75,7 +75,9 @@
   (put table key value))
 
 (defn is-probably-interpreter? []
-  (= (last (string/split "/" (dyn *executable*))) "janet"))
+  (if-let [exe (dyn *executable*)]
+    (= (last (string/split "/" exe)) "janet")
+    false))
 
 (defn set-ref [ref value]
   ((ref :set) value))

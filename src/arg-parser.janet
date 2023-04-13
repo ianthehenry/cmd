@@ -143,11 +143,7 @@
       (array/concat result (split-short-flags arg))))
   result)
 
-(defn args []
-  (normalize-args
-    (if (is-probably-interpreter?)
-      (drop 1 (dyn *args*))
-      (dyn *args*))))
+(defn args [] (normalize-args (drop 1 (dyn *args*))))
 
 (defn- print-parse-errors [err-table]
   (if-let [ctxless-errors (err-table "")]
