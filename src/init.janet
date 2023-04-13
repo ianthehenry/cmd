@@ -25,8 +25,10 @@
       0 (error "not enough arguments")
       1 [(first args) []]
       (let [[first second & rest] args]
-        (if (string? first)
-          [(tuple/brackets first ;second) rest]
+        (cond 
+          (string? first) [(tuple/brackets first ;second) rest]
+          (and (tuple? first)
+               (string? (eval first))) [(tuple/brackets (eval first) ;second) rest]
           [first [second ;rest]]))))
 
   (unless (has? type+ spec :tuple-brackets)
