@@ -35,7 +35,7 @@ Combining groups and functions:
   > EOF
 
   $ run
-    foo - 
+    foo
     help - explain a subcommand
   [1]
 
@@ -62,8 +62,8 @@ Nesting groups:
   hello
 
   $ run advanced
-    bar - 
-    foo - 
+    bar
+    foo
     help - explain a subcommand
   [1]
   $ run advanced foo

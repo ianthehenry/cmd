@@ -90,7 +90,7 @@ File:
   === flags ===
   
     [--help]   : Print this help text and exit
-    --arg FILE : undocumented
+    --arg FILE
   $ run --arg filename
   "filename"
 

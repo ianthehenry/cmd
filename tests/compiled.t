@@ -27,7 +27,7 @@ As a normal script:
   === flags ===
   
     [--help]      : Print this help text and exit
-    --name STRING : undocumented
+    --name STRING
 
 As a shebanged script:
   $ chmod +x main.janet
@@ -39,7 +39,7 @@ As a shebanged script:
   === flags ===
   
     [--help]      : Print this help text and exit
-    --name STRING : undocumented
+    --name STRING
 
 As a compiled executable:
 
@@ -52,4 +52,4 @@ As a compiled executable:
   === flags ===
   
     [--help]      : Print this help text and exit
-    --name STRING : undocumented
+    --name STRING

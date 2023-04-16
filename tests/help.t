@@ -44,7 +44,7 @@ Undocumented parameters:
   === flags ===
   
     [--help]     : Print this help text and exit
-    --arg STRING : undocumented
+    --arg STRING
 
 Hidden aliases:
 
@@ -54,14 +54,14 @@ Hidden aliases:
   === flags ===
   
     [--help]     : Print this help text and exit
-    --arg STRING : undocumented
+    --arg STRING
   $ run -?
     script.janet
   
   === flags ===
   
     [--help]     : Print this help text and exit
-    --arg STRING : undocumented
+    --arg STRING
 
 Docstring:
 
@@ -270,20 +270,20 @@ Every handler:
   
   === flags ===
   
-    [--effect]                : undocumented
+    [--effect]
     [--soft-escape]           : Treat all subsequent arguments as positional
     [--help]                  : Print this help text and exit
-    [--array STRING]...       : undocumented
-    --array+ STRING...        : undocumented
-    [--counted]               : undocumented
-    [--flag]                  : undocumented
-    [--hard-escape STRING...] : undocumented
-    [--last STRING]...        : undocumented
-    --last+ STRING...         : undocumented
-    [--optional STRING]       : undocumented
-    --required STRING         : undocumented
-    [--tuple STRING]...       : undocumented
-    --tuple+ STRING...        : undocumented
+    [--array STRING]...
+    --array+ STRING...
+    [--counted]
+    [--flag]
+    [--hard-escape STRING...]
+    [--last STRING]...
+    --last+ STRING...
+    [--optional STRING]
+    --required STRING
+    [--tuple STRING]...
+    --tuple+ STRING...
 
 Word wrap in group help output:
 
@@ -356,3 +356,33 @@ Positional arguments use the same format handlers as named arguments:
   === flags ===
   
     [--help] : Print this help text and exit
+
+Horizontal alignment in group:
+
+  $ use <<EOF
+  > (cmd/main (cmd/group
+  >   short (cmd/fn [])
+  >   much-longer (cmd/fn [])))
+  > EOF
+
+  $ run help
+    help        - explain a subcommand
+    much-longer
+    short
+
+Horizontal alignment in simple:
+
+  $ use <<EOF
+  > (cmd/def
+  >   --short :string ""
+  >   --much-longer :string "")
+  > EOF
+
+  $ run --help
+    script.janet
+  
+  === flags ===
+  
+    [--help]             : Print this help text and exit
+    --much-longer STRING
+    --short STRING

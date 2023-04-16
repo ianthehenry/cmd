@@ -98,7 +98,7 @@
     (def rights (word-wrap docstring (max (/ desired-width 2) (- desired-width left-column-width))))
 
     (zip-lines lefts rights (fn [first? last? left right]
-      (def sep (if first? sep (if (empty? right) "" "   ")))
+      (def sep (if (empty? right) "" (if first? sep "   ")))
       (def pad-to (if (empty? right) 0 left-column-width))
       (print "  " (right-pad left pad-to) sep right)
       ))))
@@ -119,7 +119,7 @@
 (defn- default-description [param]
   (case ((param :handler) :value)
     :soft-escape "Treat all subsequent arguments as positional"
-    "undocumented"
+    ""
     ))
 
 (defn simple [spec]
