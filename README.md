@@ -512,6 +512,10 @@ These are not fundamental limitations of this library, but merely unimplemented 
 
 # Changelog
 
+## next
+
+- Docstrings no longer have to be string literals, so you can construct a dynamic docstring with `(string/format ...)`. Note that the expression has to be a form to disambiguate it from a parameter name, so if you have the docstring in a variable already you have to write `(|docstring)` instead of `docstring` in order for the macro to parse it correctly.
+
 ## `v1.0.4` - 2023-04-12
 
 - Fix `--help` output when used in a compiled executable.
