@@ -15,6 +15,12 @@
   (help/group spec)
   (os/exit 1))
 
+(defn- potential-docstring? [node]
+  (case (type+ node)
+    :tuple-parens true
+    :string true
+    false))
+
 # TODO: the representation of having the :help
 # function is a little odd. we could just represent
 # the command as the fully-parsed spec, and have
@@ -25,7 +31,7 @@
       0 (error "not enough arguments")
       1 [(first args) []]
       (let [[first second & rest] args]
-        (if (string? first)
+        (if (potential-docstring? first)
           [(tuple/brackets first ;second) rest]
           [first [second ;rest]]))))
 
@@ -70,7 +76,7 @@
 
 (defmacro group [& spec]
   (def [docstring spec]
-    (if (string? (first spec))
+    (if (potential-docstring? (first spec))
       [(first spec) (drop 1 spec)]
       [nil spec]))
 

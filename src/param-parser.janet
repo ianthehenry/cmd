@@ -353,7 +353,7 @@
 (def- state/pending
   @{:on-string set-ctx-doc
     :on-param (fn [self ctx names] (goto-state ctx (new-param-state names)))
-    :on-other (fn [self ctx token] (errorf "unexpected token %q" token))
+    :on-other set-ctx-doc
     :on-eof (fn [_ _])})
 
 (def- state/initial
