@@ -30,6 +30,20 @@ cmd/spec and cmd/parse:
   @{:foo "hello"}
   @{:bar "world" :foo "hello"}
 
+cmd/parse raises errors:
+
+  $ use <<EOF
+  > (def spec (cmd/spec
+  >   foo :number))
+  > (try (cmd/parse spec ["hello"])
+  >   ([e fib]
+  >     (print "parse error:")
+  >     (pp e)))
+  > EOF
+  $ run
+  parse error:
+  @{foo @["hello is not a number" "missing required argument"]}
+
 cmd/args:
 
   $ use <<EOF

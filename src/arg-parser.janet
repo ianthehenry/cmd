@@ -216,4 +216,6 @@
       (def handler (assert (handlers sym)))
       (try-with-context sym errors
         (put result (keyword sym) ((handler :finish) val))))
-    result))
+    (if (empty? errors)
+      result
+      (error errors))))
