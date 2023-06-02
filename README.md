@@ -457,11 +457,11 @@ There is also a helper, `cmd/peg`, which you can use to create ad-hoc argument p
 
 # Help
 
-`cmd` will automatically generate a `--help` flag.
+`cmd` will automatically generate a `--help` flag that prints the full docstring for a command.
 
-The docstring can be multiple lines long. In that case, only the first line will appear in a command group description.
+When printing the help for groups, `cmd` will only print the first line of each subcommand's docstring.
 
-You give useful names to arguments by replacing argument types with a tuple of `["ARG-NAME" type]`. For example:
+You can give useful names to arguments by replacing argument types with a tuple of `["ARG-NAME" type]`. For example:
 
 ```janet
 (def name ["NAME" :string])
